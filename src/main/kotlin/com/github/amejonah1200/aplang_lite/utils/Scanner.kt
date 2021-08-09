@@ -1,7 +1,6 @@
 package com.github.amejonah1200.aplang_lite.utils
 
 import java.util.*
-import java.util.function.Predicate
 
 
 open class Scanner<T>(val elements: List<T>) {
@@ -44,15 +43,15 @@ open class Scanner<T>(val elements: List<T>) {
     return result
   }
 
-  fun <F1 : Predicate<T>, F2 : Predicate<T>> peekSearchIgnore(ignore: F1, predicate: F2): Boolean {
+  fun peekSearchIgnore(ignore: (T) -> Boolean, predicate: (T) -> Boolean): Boolean {
     while (peekSearchWithPredicate(ignore)) {
     }
     rewindPeek(1)
     return peekSearchWithPredicate(predicate)
   }
 
-  fun <F : Predicate<T>> peekSearchWithPredicate(predicate: F): Boolean {
-    return peek().map(predicate::test).orElse(false)
+  fun peekSearchWithPredicate(predicate: (T) -> Boolean): Boolean {
+    return peek().map(predicate::invoke).orElse(false)
   }
 
   fun advancePeek(nb: Int) {
@@ -117,7 +116,7 @@ open class Scanner<T>(val elements: List<T>) {
 fun Scanner<Char>.toCharScanner() = CharScanner(elements.joinToString(""))
 
 class CharScanner(val str: String) : Scanner<Char>(str.toCharArray().asList()) {
-  fun searchNextChars(consume: Boolean, use_peek: Boolean, predicate: Predicate<Char>): String {
+  fun searchNextChars(consume: Boolean, use_peek: Boolean, predicate: (Char) -> Boolean): String {
     val result = StringBuilder()
     val startPos = if (use_peek) {
       peek
@@ -126,7 +125,7 @@ class CharScanner(val str: String) : Scanner<Char>(str.toCharArray().asList()) {
     }
     var i = 0
     while (startPos + i < elements.size) {
-      if (predicate.test(elements[startPos + i])) {
+      if (predicate(elements[startPos + i])) {
         result.append(elements[startPos + i])
       } else break
       i += 1
@@ -137,16 +136,16 @@ class CharScanner(val str: String) : Scanner<Char>(str.toCharArray().asList()) {
 
   fun nextChars(nb: Int, consume: Boolean, use_peek: Boolean, fail_on_not_reach: Boolean): Optional<String> {
     val result = StringBuilder()
-    val start_pos = if (use_peek) {
+    val startPos = if (use_peek) {
       peek
     } else {
       position
     }
-    if (start_pos + nb >= elements.size && fail_on_not_reach) return Optional.empty()
+    if (startPos + nb >= elements.size && fail_on_not_reach) return Optional.empty()
     var nbToAdvance = nb
     for (i in 0 until nb) {
-      if (start_pos + i < elements.size) {
-        result.append(elements[start_pos + i])
+      if (startPos + i < elements.size) {
+        result.append(elements[startPos + i])
       } else {
         nbToAdvance = i
         break
@@ -156,7 +155,7 @@ class CharScanner(val str: String) : Scanner<Char>(str.toCharArray().asList()) {
     return Optional.of(result.toString())
   }
 
-  fun searchConsumeChars(predicate: Predicate<Char>): String = searchNextChars(consume = true, use_peek = false, predicate = predicate)
+  fun searchConsumeChars(predicate: (Char) -> Boolean): String = searchNextChars(consume = true, use_peek = false, predicate = predicate)
   fun consumeChars(nb: Int, fail_on_not_reach: Boolean): Optional<String> = nextChars(
     nb,
     consume = true,
@@ -177,7 +176,7 @@ class CharScanner(val str: String) : Scanner<Char>(str.toCharArray().asList()) {
     nextChars(str.length, consume = false, use_peek = true, fail_on_not_reach = true).map(str::equals).orElse(false)
 
   fun peekSearchChar(chr: Char): Boolean = peekChar().map { it == chr }.orElse(false)
-  fun peekSearchChars(predicate: Predicate<Char>): String = searchNextChars(consume = false, use_peek = true, predicate = predicate)
+  fun peekSearchChars(predicate: (Char) -> Boolean): String = searchNextChars(consume = false, use_peek = true, predicate = predicate)
 }
 
 //class TokenScanner(elements: List<OneLineObject<Token>>) : Scanner<OneLineObject<Token>>(elements) {
