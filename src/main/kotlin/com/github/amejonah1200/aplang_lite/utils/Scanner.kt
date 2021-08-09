@@ -124,10 +124,8 @@ class CharScanner(val str: String) : Scanner<Char>(str.toCharArray().asList()) {
       position
     }
     var i = 0
-    while (startPos + i < elements.size) {
-      if (predicate(elements[startPos + i])) {
-        result.append(elements[startPos + i])
-      } else break
+    while (startPos + i < elements.size && predicate(elements[startPos + i])) {
+      result.append(elements[startPos + i])
       i += 1
     }
     advance(i, consume, use_peek)
