@@ -1,5 +1,6 @@
 package com.github.amejonah1200.aplang_lite.tokenizer
 
+import java.math.BigInteger
 import java.util.*
 
 abstract class Token {
@@ -24,8 +25,16 @@ abstract class Token {
     override fun length(): Int = string.length + 2
   }
 
-  data class CharToken(val char: Char) : Token() {
+  data class CharToken(val char: String) : Token() {
     override fun length(): Int = 3
+  }
+
+  data class IntegerToken(val int: BigInteger) : Token() {
+    override fun length(): Int = 69 // TODO Remove length in Token
+  }
+
+  data class FloatToken(val first: BigInteger, val second: BigInteger) : Token() {
+    override fun length(): Int = 69
   }
 
   abstract fun length(): Int
