@@ -56,7 +56,7 @@ fun scan(scanner: CharScanner): ScanResult {
         } else {
           val bi = nb.toBigIntegerOrNull(2)
           if (bi == null) {
-            errors.add(OneLineObject(posX, posY, scanner.position - startPos, ScanErrorType.NUMBER_FORMAT))
+            errors.add(OneLineObject(posX, posY, ScanErrorType.NUMBER_FORMAT, scanner.position - startPos))
             Token.IntegerToken(BigInteger(nb))
           } else Token.IntegerToken(bi)
         }
@@ -67,7 +67,7 @@ fun scan(scanner: CharScanner): ScanResult {
           Token.FloatToken(BigInteger(nb), BigInteger(scanner.searchConsumeChars(Char::isDigit)))
         } else Token.IntegerToken(BigInteger(nb))
       }
-      tokens.add(OneLineObject(posX, posY, scanner.position - startPos, tk))
+      tokens.add(OneLineObject(posX, posY, tk, scanner.position - startPos))
       posX += scanner.position - startPos
       continue
     }
@@ -76,7 +76,7 @@ fun scan(scanner: CharScanner): ScanResult {
         val match = Regex("\".*?\"(?<!\\\\\")").find(scanner.str, scanner.position)
           ?: throw ParserException("No closing quoting mark for string at $posY:$posX")
         scanner.advancePosition(match.value.length)
-        tokens.add(OneLineObject(posX, posY, scanner.position - startPos, Token.StringToken(match.value.substring(1, match.value.length - 1))))
+        tokens.add(OneLineObject(posX, posY, Token.StringToken(match.value.substring(1, match.value.length - 1)), scanner.position - startPos))
         posX += scanner.position - startPos
       }
       '\'' -> {
@@ -84,7 +84,7 @@ fun scan(scanner: CharScanner): ScanResult {
           ?: throw ParserException("No closing apostrophe mark for char at $posY:$posX")
         if (match.range.first != scanner.position) throw ParserException("No closing apostrophe mark for string at $posY:$posX")
         scanner.advancePosition(match.value.length)
-        tokens.add(OneLineObject(posX, posY, scanner.position - startPos, Token.CharToken(match.value.substring(1, match.value.length - 1))))
+        tokens.add(OneLineObject(posX, posY, Token.CharToken(match.value.substring(1, match.value.length - 1)), scanner.position - startPos))
         posX += scanner.position - startPos
       }
       else -> {
@@ -96,7 +96,7 @@ fun scan(scanner: CharScanner): ScanResult {
             posY += 1
             posX = 0
           } else {
-            tokens.add(OneLineObject(posX, posY, foundToken.second, tk))
+            tokens.add(OneLineObject(posX, posY, tk, foundToken.second))
             posX += foundToken.second
             scanner.advancePosition(foundToken.second)
           }
@@ -105,7 +105,7 @@ fun scan(scanner: CharScanner): ScanResult {
           if (identifier.isEmpty()) {
             throw ParserException("Unknown char '${buffer[0]}' at $posY:$posX")
           }
-          tokens.add(OneLineObject(posX, posY, scanner.position - startPos, Token.IdentifierToken(identifier)))
+          tokens.add(OneLineObject(posX, posY, Token.IdentifierToken(identifier), scanner.position - startPos))
           posX += scanner.position - startPos
         }
       }
