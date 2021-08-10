@@ -4,40 +4,23 @@ import java.math.BigInteger
 import java.util.*
 
 abstract class Token {
-  data class KeywordToken(val keyword: Keyword) : Token() {
-    override fun length(): Int = keyword.name.length
-  }
+  data class KeywordToken(val keyword: Keyword) : Token()
 
-  data class PrimitiveKeywordToken(val keyword: PrimitiveKeyword) : Token() {
-    override fun length(): Int = keyword.name.length
-  }
+  data class PrimitiveKeywordToken(val keyword: PrimitiveKeyword) : Token()
 
-  data class ValueKeywordToken(val keyword: ValueKeyword) : Token() {
-    override fun length(): Int = keyword.name.length
-  }
+  data class ValueKeywordToken(val keyword: ValueKeyword) : Token()
 
-  data class SignToken(val codeToken: CodeToken) : Token() {
-    override fun length(): Int = codeToken.stringRepresentation.length
-  }
+  data class SignToken(val codeToken: CodeToken) : Token()
 
-  data class StringToken(val string: String) : Token() {
+  data class StringToken(val string: String) : Token()
 
-    override fun length(): Int = string.length + 2
-  }
+  data class CharToken(val char: String) : Token()
 
-  data class CharToken(val char: String) : Token() {
-    override fun length(): Int = 3
-  }
+  data class IntegerToken(val int: BigInteger) : Token()
 
-  data class IntegerToken(val int: BigInteger) : Token() {
-    override fun length(): Int = 69 // TODO Remove length in Token
-  }
+  data class FloatToken(val first: BigInteger, val second: BigInteger) : Token()
 
-  data class FloatToken(val first: BigInteger, val second: BigInteger) : Token() {
-    override fun length(): Int = 69
-  }
-
-  abstract fun length(): Int
+  data class IdentifierToken(val identifier: String) : Token()
 }
 
 enum class CodeToken(val stringRepresentation: String) {
@@ -314,7 +297,6 @@ enum class Keyword {
   IF, ELSE, WHILE, FOR, RETURN, BREAK,
   VAR, VAL,
   PUB,
-  TRUE, FALSE,
   CLASS, SUPER, THIS,
   USE
 }
@@ -332,17 +314,16 @@ enum class ValueKeyword {
 }
 
 val LONGEST_TOKEN_LENGTH: Int = arrayOf(
-  CodeToken.values().map(CodeToken::name),
+  CodeToken.values().map(CodeToken::stringRepresentation),
   Keyword.values().map(Keyword::name),
   PrimitiveKeyword.values().map(PrimitiveKeyword::name),
   ValueKeyword.values().map(ValueKeyword::name)
 ).maxOf { it.maxByOrNull(String::length)!!.length }
-
 val KEYWORDS = listOf(Keyword.values().map { it.name.lowercase() },
   PrimitiveKeyword.values().map { it.name.lowercase() },
   ValueKeyword.values().map { it.name.lowercase() }).flatten()
 
-fun parseToken(string: String): Optional<Token> {
+fun parseToken(string: String): Optional<Pair<Token, Int>> {
   if (string.isEmpty()) return Optional.empty()
   if (string[0].isLetter()) {
     var index = Optional.empty<Int>()
@@ -353,17 +334,21 @@ fun parseToken(string: String): Optional<Token> {
     return index.map {
       Keyword.values().getOrNull(it) ?: PrimitiveKeyword.values().getOrNull(it - Keyword.values().size)
       ?: ValueKeyword.values()[it - Keyword.values().size - PrimitiveKeyword.values().size]
-    }.map {
-      when (it) {
-        is Keyword -> Token.KeywordToken(it)
-        is PrimitiveKeyword -> Token.PrimitiveKeywordToken(it)
-        is ValueKeyword -> Token.ValueKeywordToken(it)
+    }.map { keyword ->
+      val length = keyword.name.length
+      when (keyword) {
+        is Keyword -> Token.KeywordToken(keyword)
+        is PrimitiveKeyword -> Token.PrimitiveKeywordToken(keyword)
+        is ValueKeyword -> Token.ValueKeywordToken(keyword)
         else -> throw IllegalStateException("should never happen")
-      }
+      }.let { Pair(it, length) }
     }
   } else {
-    return Optional.ofNullable(CodeToken.values().filter { string.startsWith(it.stringRepresentation) }.reduceOrNull { acc, codeToken ->
+
+    return Optional.ofNullable(CodeToken.values().filter {
+      string.startsWith(it.stringRepresentation)
+    }.reduceOrNull { acc, codeToken ->
       if (acc.stringRepresentation.length > codeToken.stringRepresentation.length) acc else codeToken
-    }).map { Token.SignToken(it) }
+    }).map { Pair(Token.SignToken(it), it.stringRepresentation.length) }
   }
 }

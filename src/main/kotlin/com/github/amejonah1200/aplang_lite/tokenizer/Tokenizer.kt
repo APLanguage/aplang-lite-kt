@@ -15,12 +15,12 @@ class ParserException(msg: String) : RuntimeException(msg)
 
 fun scan(scanner: CharScanner): ScanResult {
   scanner.reset()
-  val list = mutableListOf<OneLineObject<Token>>()
+  val tokens = mutableListOf<OneLineObject<Token>>()
   val errors = mutableListOf<OneLineObject<ScanErrorType>>()
   var posX = 0
   var posY = 0
   var buffer: Optional<String>
-  while (true) {
+  while (!scanner.isPositionEOF()) {
     posX += scanner.searchConsumeChars {
       it.isWhitespace() && it != '\n'
     }.length
@@ -30,6 +30,7 @@ fun scan(scanner: CharScanner): ScanResult {
       posY += 1
       continue
     }
+    scanner.resetPeek()
     val startPos = scanner.position
     buffer = scanner.peekChars(LONGEST_TOKEN_LENGTH, false)
     if (buffer.isEmpty) break
@@ -67,7 +68,7 @@ fun scan(scanner: CharScanner): ScanResult {
           Token.FloatToken(BigInteger(nb), BigInteger(scanner.searchConsumeChars(Char::isDigit)))
         } else Token.IntegerToken(BigInteger(nb))
       }
-      list.add(OneLineObject(posX, posY, scanner.position - startPos, tk))
+      tokens.add(OneLineObject(posX, posY, scanner.position - startPos, tk))
       posX += scanner.position - startPos
       continue
     }
@@ -76,36 +77,42 @@ fun scan(scanner: CharScanner): ScanResult {
         val match = Regex("\".*?\"(?<!\\\\\")").find(scanner.str, scanner.position)
           ?: throw ParserException("No closing quoting mark for string at $posY:$posX")
         scanner.advancePosition(match.value.length)
-        list.add(OneLineObject(posX, posY, scanner.position - startPos, Token.StringToken(match.value.substring(1, match.value.length - 1))))
+        tokens.add(OneLineObject(posX, posY, scanner.position - startPos, Token.StringToken(match.value.substring(1, match.value.length - 1))))
         posX += scanner.position - startPos
       }
       '\'' -> {
         val match = Regex("'(?:\\\\[^\\\\]|.)'").find(scanner.str, scanner.position)
-          ?: throw ParserException("No closing apostrophe mark for string at $posY:$posX")
+          ?: throw ParserException("No closing apostrophe mark for char at $posY:$posX")
         if (match.range.first != scanner.position) throw ParserException("No closing apostrophe mark for string at $posY:$posX")
         scanner.advancePosition(match.value.length)
-        list.add(OneLineObject(posX, posY, scanner.position - startPos, Token.CharToken(match.value.substring(1, match.value.length - 1))))
+        tokens.add(OneLineObject(posX, posY, scanner.position - startPos, Token.CharToken(match.value.substring(1, match.value.length - 1))))
         posX += scanner.position - startPos
       }
       else -> {
         val tkOpt = parseToken(buffer.get())
         tkOpt.ifPresentOrElse(
           {
-            scanner.advancePosition(LONGEST_TOKEN_LENGTH)
-            if (it is Token.SignToken && it.codeToken == CodeToken.SLASH_SLASH) {
+            val tk = it.first
+            if (tk is Token.SignToken && tk.codeToken == CodeToken.SLASH_SLASH) {
               scanner.searchConsumeChars { chr -> chr != '\n' }
               posY += 1
               posX = 0
             } else {
-              list.add(OneLineObject(posX, posY, scanner.position - startPos, it))
-              posX += it.length()
+              tokens.add(OneLineObject(posX, posY, it.second, tk))
+              posX += it.second
+              scanner.advancePosition(it.second)
             }
           }) {
-          throw ParserException("Unknown char '${buffer.get()[0]}' at $posY:$posX")
+          val identifier = scanner.searchConsumeChars { it.isLetterOrDigit() || it == '_' }
+          if (identifier.isEmpty()) {
+            throw ParserException("Unknown char '${buffer.get()[0]}' at $posY:$posX")
+          }
+          tokens.add(OneLineObject(posX, posY, scanner.position - startPos, Token.IdentifierToken(identifier)))
+          posX += scanner.position - startPos
         }
       }
     }
   }
-  return ScanResult(list, errors)
+  return ScanResult(tokens, errors)
 }
 
