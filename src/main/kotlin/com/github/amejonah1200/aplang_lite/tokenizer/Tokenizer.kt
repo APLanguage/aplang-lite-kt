@@ -3,7 +3,6 @@ package com.github.amejonah1200.aplang_lite.tokenizer
 import com.github.amejonah1200.aplang_lite.utils.CharScanner
 import com.github.amejonah1200.aplang_lite.utils.OneLineObject
 import java.math.BigInteger
-import java.util.*
 
 enum class ScanErrorType {
   NUMBER_FORMAT
@@ -19,7 +18,7 @@ fun scan(scanner: CharScanner): ScanResult {
   val errors = mutableListOf<OneLineObject<ScanErrorType>>()
   var posX = 0
   var posY = 0
-  var buffer: Optional<String>
+  var buffer: String?
   while (!scanner.isPositionEOF()) {
     posX += scanner.searchConsumeChars {
       it.isWhitespace() && it != '\n'
@@ -33,9 +32,9 @@ fun scan(scanner: CharScanner): ScanResult {
     scanner.resetPeek()
     val startPos = scanner.position
     buffer = scanner.peekChars(LONGEST_TOKEN_LENGTH, false)
-    if (buffer.isEmpty) break
-    else if (buffer.get()[0].isWhitespace()) continue
-    else if (buffer.get()[0].isDigit()) {
+    if (buffer == null || buffer.isEmpty()) break
+    else if (buffer[0].isWhitespace()) continue
+    else if (buffer[0].isDigit()) {
       scanner.resetPeek()
       val tk = if (scanner.peekSearch("0x")) {
         scanner.advancePosition(2)
@@ -72,7 +71,7 @@ fun scan(scanner: CharScanner): ScanResult {
       posX += scanner.position - startPos
       continue
     }
-    when (buffer.get()[0]) {
+    when (buffer[0]) {
       '"' -> {
         val match = Regex("\".*?\"(?<!\\\\\")").find(scanner.str, scanner.position)
           ?: throw ParserException("No closing quoting mark for string at $posY:$posX")
@@ -89,23 +88,22 @@ fun scan(scanner: CharScanner): ScanResult {
         posX += scanner.position - startPos
       }
       else -> {
-        val tkOpt = parseToken(buffer.get())
-        tkOpt.ifPresentOrElse(
-          {
-            val tk = it.first
-            if (tk is Token.SignToken && tk.codeToken == CodeToken.SLASH_SLASH) {
-              scanner.searchConsumeChars { chr -> chr != '\n' }
-              posY += 1
-              posX = 0
-            } else {
-              tokens.add(OneLineObject(posX, posY, it.second, tk))
-              posX += it.second
-              scanner.advancePosition(it.second)
-            }
-          }) {
+        val foundToken = parseToken(buffer)
+        if (foundToken != null) {
+          val tk = foundToken.first
+          if (tk is Token.SignToken && tk.codeToken == CodeToken.SLASH_SLASH) {
+            scanner.searchConsumeChars { chr -> chr != '\n' }
+            posY += 1
+            posX = 0
+          } else {
+            tokens.add(OneLineObject(posX, posY, foundToken.second, tk))
+            posX += foundToken.second
+            scanner.advancePosition(foundToken.second)
+          }
+        } else {
           val identifier = scanner.searchConsumeChars { it.isLetterOrDigit() || it == '_' }
           if (identifier.isEmpty()) {
-            throw ParserException("Unknown char '${buffer.get()[0]}' at $posY:$posX")
+            throw ParserException("Unknown char '${buffer[0]}' at $posY:$posX")
           }
           tokens.add(OneLineObject(posX, posY, scanner.position - startPos, Token.IdentifierToken(identifier)))
           posX += scanner.position - startPos

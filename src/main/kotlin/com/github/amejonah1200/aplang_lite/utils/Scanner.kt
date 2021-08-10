@@ -1,7 +1,5 @@
 package com.github.amejonah1200.aplang_lite.utils
 
-import java.util.*
-
 
 open class Scanner<T>(val elements: List<T>) {
   var peek: Int = 0
@@ -28,20 +26,9 @@ open class Scanner<T>(val elements: List<T>) {
     }
   }
 
-  fun consume(): Optional<T> {
-    val result = Optional.ofNullable(elements.getOrNull(position))
-    result.ifPresent {
-      position += 1
-      peek = position
-    }
-    return result
-  }
+  fun consume(): T? = elements.getOrNull(position)?.also { position += 1; peek = position }
 
-  fun peek(): Optional<T> {
-    val result = Optional.ofNullable(elements.getOrNull(peek))
-    result.ifPresent { peek += 1 }
-    return result
-  }
+  fun peek(): T? = elements.getOrNull(peek)?.also { peek += 1 }
 
   fun peekSearchIgnore(ignore: (T) -> Boolean, predicate: (T) -> Boolean): Boolean {
     while (peekSearchWithPredicate(ignore)) {
@@ -51,7 +38,7 @@ open class Scanner<T>(val elements: List<T>) {
   }
 
   fun peekSearchWithPredicate(predicate: (T) -> Boolean): Boolean {
-    return peek().map(predicate::invoke).orElse(false)
+    return peek()?.let(predicate::invoke) ?: false
   }
 
   fun advancePeek(nb: Int) {
@@ -131,14 +118,14 @@ class CharScanner(val str: String) : Scanner<Char>(str.toCharArray().asList()) {
     return result.toString()
   }
 
-  fun nextChars(nb: Int, consume: Boolean, use_peek: Boolean, fail_on_not_reach: Boolean): Optional<String> {
+  fun nextChars(nb: Int, consume: Boolean, use_peek: Boolean, fail_on_not_reach: Boolean): String? {
     val result = StringBuilder()
     val startPos = if (use_peek) {
       peek
     } else {
       position
     }
-    if (startPos + nb >= elements.size && fail_on_not_reach) return Optional.empty()
+    if (startPos + nb >= elements.size && fail_on_not_reach) return null
     var nbToAdvance = nb
     for (i in 0 until nb) {
       if (startPos + i < elements.size) {
@@ -149,34 +136,30 @@ class CharScanner(val str: String) : Scanner<Char>(str.toCharArray().asList()) {
       }
     }
     advance(nbToAdvance, consume, use_peek)
-    return Optional.of(result.toString())
+    return result.toString()
   }
 
   fun searchConsumeChars(predicate: (Char) -> Boolean): String = searchNextChars(consume = true, use_peek = false, predicate = predicate)
-  fun consumeChars(nb: Int, fail_on_not_reach: Boolean): Optional<String> = nextChars(
+  fun consumeChars(nb: Int, fail_on_not_reach: Boolean): String? = nextChars(
     nb,
     consume = true,
     use_peek = false,
     fail_on_not_reach = fail_on_not_reach
   )
 
-  fun peekChar(): Optional<Char> {
-    val result = Optional.ofNullable(elements.getOrNull(peek));
-    result.ifPresent { peek += 1 }
-    return result
+  fun peekChar(): Char? {
+    return elements.getOrNull(peek)?.also { peek += 1 }
   }
 
-  fun peekChars(nb: Int, fail_on_not_reach: Boolean): Optional<String> =
+  fun peekChars(nb: Int, fail_on_not_reach: Boolean): String? =
     nextChars(nb, consume = false, use_peek = true, fail_on_not_reach = fail_on_not_reach)
 
   fun peekSearch(str: String): Boolean =
-    nextChars(str.length, consume = false, use_peek = true, fail_on_not_reach = true).map {
-      val result = str == it
-      if (!result) rewindPeek(str.length)
-      result
-    }.orElse(false)
+    nextChars(str.length, consume = false, use_peek = true, fail_on_not_reach = true)?.let {
+      (str == it).also { result -> if (!result) rewindPeek(str.length) }
+    } ?: false
 
-  fun peekSearchChar(chr: Char): Boolean = peekChar().map { it == chr }.orElse(false)
+  fun peekSearchChar(chr: Char): Boolean = peekChar()?.let { it == chr } ?: false
   fun peekSearchChars(predicate: (Char) -> Boolean): String = searchNextChars(consume = false, use_peek = true, predicate = predicate)
 }
 

@@ -1,7 +1,6 @@
 package com.github.amejonah1200.aplang_lite.tokenizer
 
 import java.math.BigInteger
-import java.util.*
 
 abstract class Token {
   data class KeywordToken(val keyword: Keyword) : Token()
@@ -323,18 +322,18 @@ val KEYWORDS = listOf(Keyword.values().map { it.name.lowercase() },
   PrimitiveKeyword.values().map { it.name.lowercase() },
   ValueKeyword.values().map { it.name.lowercase() }).flatten()
 
-fun parseToken(string: String): Optional<Pair<Token, Int>> {
-  if (string.isEmpty()) return Optional.empty()
-  if (string[0].isLetter()) {
-    var index = Optional.empty<Int>()
+fun parseToken(string: String): Pair<Token, Int>? {
+  if (string.isEmpty()) return null
+  return if (string[0].isLetter()) {
+    var index: Int? = null
     for (i in KEYWORDS.indices) {
-      if (index.isEmpty && string.startsWith(KEYWORDS[i])) index = Optional.of(i)
-      else if (index.isPresent && KEYWORDS[i].length > KEYWORDS[index.get()].length && string.startsWith(KEYWORDS[i])) index = Optional.of(i)
+      if (index == null && string.startsWith(KEYWORDS[i])) index = i
+      else if (index != null && KEYWORDS[i].length > KEYWORDS[index].length && string.startsWith(KEYWORDS[i])) index = i
     }
-    return index.map {
+    index?.let {
       Keyword.values().getOrNull(it) ?: PrimitiveKeyword.values().getOrNull(it - Keyword.values().size)
       ?: ValueKeyword.values()[it - Keyword.values().size - PrimitiveKeyword.values().size]
-    }.map { keyword ->
+    }?.let { keyword ->
       val length = keyword.name.length
       when (keyword) {
         is Keyword -> Token.KeywordToken(keyword)
@@ -344,11 +343,10 @@ fun parseToken(string: String): Optional<Pair<Token, Int>> {
       }.let { Pair(it, length) }
     }
   } else {
-
-    return Optional.ofNullable(CodeToken.values().filter {
+    CodeToken.values().filter {
       string.startsWith(it.stringRepresentation)
     }.reduceOrNull { acc, codeToken ->
       if (acc.stringRepresentation.length > codeToken.stringRepresentation.length) acc else codeToken
-    }).map { Pair(Token.SignToken(it), it.stringRepresentation.length) }
+    }?.let { Pair(Token.SignToken(it), it.stringRepresentation.length) }
   }
 }
