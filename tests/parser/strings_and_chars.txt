@@ -1,0 +1,5 @@
+"Hello AP!"
+"Hello it's me, \"Mario\"!"
+'i'
+''' // should be a valid char
+'\' // this too
