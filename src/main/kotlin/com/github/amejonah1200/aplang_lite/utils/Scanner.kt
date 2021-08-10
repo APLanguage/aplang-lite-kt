@@ -26,7 +26,7 @@ open class Scanner<T>(val elements: List<T>) {
     }
   }
 
-  fun consume(): T? = elements.getOrNull(position)?.also { position += 1; peek = position }
+  fun consume(): T? = elements.getOrNull(position)?.also { position += 1 }
 
   fun peek(): T? = elements.getOrNull(peek)?.also { peek += 1 }
 
@@ -174,5 +174,52 @@ class CharScanner(val str: String) : Scanner<Char>(str.toCharArray().asList()) {
 //  fun consume_coords(): Pair<Int, Int> {}
 //  fun consume_next_coords(): Pair<Int, Int> {}
 //}
+
+fun <T> Scanner<GriddedObject<T>>.toGriddedScanner() = GriddedScanner(elements)
+
+class GriddedScanner<T>(elements: List<GriddedObject<T>>) : Scanner<GriddedObject<T>>(elements) {
+
+  fun peekPreviousCoords(): Pair<Pair<Int, Int>, Pair<Int, Int>> {
+    return if (peek == 0) peekCoords()
+    else {
+      val previous = elements[peek - 1]
+      Pair(previous.startCoords(), previous.endCoords())
+    }
+  }
+
+  fun peekCoords(): Pair<Pair<Int, Int>, Pair<Int, Int>> {
+    val previous = elements[peek]
+    return Pair(previous.startCoords(), previous.endCoords())
+  }
+
+  fun peekNextCoords(): Pair<Pair<Int, Int>, Pair<Int, Int>> {
+    return if (peek + 1 >= elements.size) peekCoords()
+    else {
+      val next = elements[peek + 1]
+      Pair(next.startCoords(), next.endCoords())
+    }
+  }
+
+  fun consumePreviousCoords(): Pair<Pair<Int, Int>, Pair<Int, Int>> {
+    return if (position == 0) consumeCoords()
+    else {
+      val previous = elements[position - 1]
+      Pair(previous.startCoords(), previous.endCoords())
+    }
+  }
+
+  fun consumeCoords(): Pair<Pair<Int, Int>, Pair<Int, Int>> {
+    val previous = elements[position]
+    return Pair(previous.startCoords(), previous.endCoords())
+  }
+
+  fun consumeNextCoords(): Pair<Pair<Int, Int>, Pair<Int, Int>> {
+    return if (position + 1 >= elements.size) consumeCoords()
+    else {
+      val next = elements[position + 1]
+      Pair(next.startCoords(), next.endCoords())
+    }
+  }
+}
 
 private fun clamp(lower: Int, x: Int, upper: Int) = if (x < lower) lower else if (x > upper) upper else x
