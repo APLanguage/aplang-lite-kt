@@ -1,0 +1,3 @@
+[submodule "aplang-lite-specs"]
+	path = aplang-lite-specs
+	url = https://github.com/APLanguage/aplang-lite-specs
