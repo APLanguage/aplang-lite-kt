@@ -1,5 +1,9 @@
 package com.github.amejonah1200.aplang_lite.utils
 
+import com.github.amejonah1200.aplang_lite.tokenizer.CodeToken
+import com.github.amejonah1200.aplang_lite.tokenizer.Keyword
+import com.github.amejonah1200.aplang_lite.tokenizer.Token
+
 
 open class Scanner<T>(val elements: List<T>) {
   var peek: Int = 0
@@ -12,6 +16,22 @@ open class Scanner<T>(val elements: List<T>) {
       field = peek
 
     }
+
+  private val sections = mutableListOf<Pair<Int, Int>>()
+
+  fun startSection() {
+    sections.add(Pair(position, peek))
+  }
+
+  fun actualSection() = sections.lastOrNull()
+
+  fun endSection(rewind: Boolean = false) {
+    val lastSection = sections.removeLastOrNull() ?: return
+    if (rewind) {
+      position = lastSection.first
+      peek = lastSection.second
+    }
+  }
 
   fun advance(nb: Int, consume: Boolean, use_peek: Boolean) {
     if (consume) {
@@ -190,64 +210,79 @@ class CharScanner(val str: String) : Scanner<Char>(str.toCharArray().asList()) {
 
 fun <T> Scanner<GriddedObject<T>>.toGriddedScanner() = GriddedScanner(elements)
 
-class GriddedScanner<T>(elements: List<GriddedObject<T>>) : Scanner<GriddedObject<T>>(elements) {
+open class GriddedScanner<T>(elements: List<GriddedObject<T>>) : Scanner<GriddedObject<T>>(elements) {
 
-  fun peekPreviousCoords(): Pair<Pair<Int, Int>, Pair<Int, Int>> {
+  fun peekPreviousCoords(): Area {
     return if (peek == 0) peekCoords()
-    else {
-      val previous = elements[peek - 1]
-      Pair(previous.startCoords(), previous.endCoords())
-    }
+    else elements[peek - 1].area()
+
   }
 
-  fun peekCoords(): Pair<Pair<Int, Int>, Pair<Int, Int>> {
-    val previous = elements[peek]
-    return Pair(previous.startCoords(), previous.endCoords())
-  }
+  fun peekCoords() = elements[peek].area()
 
-  fun peekNextCoords(): Pair<Pair<Int, Int>, Pair<Int, Int>> {
+  fun peekNextCoords(): Area {
     return if (peek + 1 >= elements.size) peekCoords()
-    else {
-      val next = elements[peek + 1]
-      Pair(next.startCoords(), next.endCoords())
-    }
+    else elements[peek + 1].area()
   }
 
-  fun consumePreviousCoords(): Pair<Pair<Int, Int>, Pair<Int, Int>> {
-    return if (position == 0) consumeCoords()
-    else {
-      val previous = elements[position - 1]
-      Pair(previous.startCoords(), previous.endCoords())
-    }
+  fun positionPreviousCoords(): Area {
+    return if (position == 0) positionCoords()
+    else elements[position - 1].area()
   }
 
-  fun consumeCoords(): Pair<Pair<Int, Int>, Pair<Int, Int>> {
-    val previous = elements[position]
-    return Pair(previous.startCoords(), previous.endCoords())
+  fun positionCoords() = elements[position].area()
+
+  fun positionNextCoords(): Area {
+    return if (position + 1 >= elements.size) peekCoords()
+    else elements[position + 1].area()
   }
 
-  fun consumeNextCoords(): Pair<Pair<Int, Int>, Pair<Int, Int>> {
-    return if (position + 1 >= elements.size) consumeCoords()
-    else {
-      val next = elements[position + 1]
-      Pair(next.startCoords(), next.endCoords())
-    }
-  }
-
-  fun consumeMatchingClass(clazz: Class<T>): GriddedObject<T>? {
+  fun <T2 : T> consumeMatchingInnerClass(clazz: Class<out T2>): GriddedObject<T2>? {
     val griddedObject = consume() ?: return null
-    if (clazz.isInstance(griddedObject.obj)) return griddedObject
+    if (clazz.isInstance(griddedObject.obj)) return griddedObject.asGriddedObjectOfType(clazz)
     rewindPosition(1)
     return null
   }
 
-  fun peekMatchingClass(clazz: Class<T>): GriddedObject<T>? {
+  fun <T2 : T> peekMatchingInnerClass(clazz: Class<out T2>): GriddedObject<T2>? {
     val griddedObject = peek() ?: return null
-    if (clazz.isInstance(griddedObject.obj)) return griddedObject
+    if (clazz.isInstance(griddedObject.obj)) return griddedObject.asGriddedObjectOfType(clazz)
     rewindPeek(1)
     return null
   }
 
+}
+
+fun GriddedScanner<Token>.toTokenScanner() = TokenScanner(elements)
+
+class TokenScanner(elements: List<GriddedObject<Token>>) : GriddedScanner<Token>(elements) {
+  fun consumeMatchingKeywordToken(keyword: Keyword): GriddedObject<Token>? {
+    val griddedObject = consumeMatchingInnerClass(Token.KeywordToken::class.java) ?: return null
+    if (griddedObject.obj.keyword == keyword) return griddedObject
+    rewindPosition(1)
+    return null
+  }
+
+  fun consumeMatchingCodeToken(codeToken: CodeToken): GriddedObject<Token>? {
+    val griddedObject = consumeMatchingInnerClass(Token.SignToken::class.java) ?: return null
+    if (griddedObject.obj.codeToken == codeToken) return griddedObject
+    rewindPosition(1)
+    return null
+  }
+
+  fun peekMatchingKeywordToken(keyword: Keyword): GriddedObject<Token>? {
+    val griddedObject = peekMatchingInnerClass(Token.KeywordToken::class.java) ?: return null
+    if (griddedObject.obj.keyword == keyword) return griddedObject
+    rewindPosition(1)
+    return null
+  }
+
+  fun peekMatchingCodeToken(codeToken: CodeToken): GriddedObject<Token>? {
+    val griddedObject = peekMatchingInnerClass(Token.SignToken::class.java) ?: return null
+    if (griddedObject.obj.codeToken == codeToken) return griddedObject
+    rewindPosition(1)
+    return null
+  }
 }
 
 private fun clamp(lower: Int, x: Int, upper: Int) = if (x < lower) lower else if (x > upper) upper else x
