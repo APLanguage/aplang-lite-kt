@@ -28,6 +28,15 @@ open class Scanner<T>(val elements: List<T>) {
 
   fun consume(): T? = elements.getOrNull(position)?.also { position += 1 }
 
+  fun consumeWithPredicate(predicate: (T) -> Boolean): T? {
+    val obj = consume() ?: return null
+    if (predicate(obj)) return obj
+    rewindPosition(1)
+    return null
+  }
+
+  open fun <T> consumeMatchingClass(clazz: Class<T>) = consumeWithPredicate(clazz::isInstance)
+
   fun peek(): T? = elements.getOrNull(peek)?.also { peek += 1 }
 
   fun peekSearchIgnore(ignore: (T) -> Boolean, predicate: (T) -> Boolean): Boolean {
@@ -39,6 +48,15 @@ open class Scanner<T>(val elements: List<T>) {
 
   fun peekSearchWithPredicate(predicate: (T) -> Boolean): Boolean {
     return peek()?.let(predicate::invoke) ?: false
+  }
+
+  open fun <T> peekMatchingClass(clazz: Class<T>) = peekWithPredicate(clazz::isInstance)
+
+  private fun peekWithPredicate(predicate: (T) -> Boolean): T? {
+    val obj = peek() ?: return null
+    if (predicate(obj)) return obj
+    rewindPeek(1)
+    return null
   }
 
   fun advancePeek(nb: Int) {
@@ -166,13 +184,8 @@ class CharScanner(val str: String) : Scanner<Char>(str.toCharArray().asList()) {
 //class TokenScanner(elements: List<OneLineObject<Token>>) : Scanner<OneLineObject<Token>>(elements) {
 //  fun peek_or_eof(): OneLineObject<Token> {}
 //  fun peek_rewind_not_eof(amount: Int) {}
-//  fun peek_previous_coords(): Pair<Pair<Int, Int>, Pair<Int, Int>> {}
-//  fun peek_coords(): Triple<Int, Int, Int> {}
-//  fun peek_next_coords(): Pair<Pair<Int, Int>, Pair<Int, Int>> {}
 //  fun consume_or_eof(): OneLineObject<Token> {}
 //  fun consume_rewind_not_eof(amount: Int) {}
-//  fun consume_coords(): Pair<Int, Int> {}
-//  fun consume_next_coords(): Pair<Int, Int> {}
 //}
 
 fun <T> Scanner<GriddedObject<T>>.toGriddedScanner() = GriddedScanner(elements)
@@ -220,6 +233,21 @@ class GriddedScanner<T>(elements: List<GriddedObject<T>>) : Scanner<GriddedObjec
       Pair(next.startCoords(), next.endCoords())
     }
   }
+
+  fun consumeMatchingClass(clazz: Class<T>): GriddedObject<T>? {
+    val griddedObject = consume() ?: return null
+    if (clazz.isInstance(griddedObject.obj)) return griddedObject
+    rewindPosition(1)
+    return null
+  }
+
+  fun peekMatchingClass(clazz: Class<T>): GriddedObject<T>? {
+    val griddedObject = peek() ?: return null
+    if (clazz.isInstance(griddedObject.obj)) return griddedObject
+    rewindPeek(1)
+    return null
+  }
+
 }
 
 private fun clamp(lower: Int, x: Int, upper: Int) = if (x < lower) lower else if (x > upper) upper else x
