@@ -5,8 +5,6 @@ import java.math.BigInteger
 abstract class Token {
   data class KeywordToken(val keyword: Keyword) : Token()
 
-  data class PrimitiveKeywordToken(val keyword: PrimitiveKeyword) : Token()
-
   data class ValueKeywordToken(val keyword: ValueKeyword) : Token()
 
   data class SignToken(val codeToken: CodeToken) : Token()
@@ -300,13 +298,6 @@ enum class Keyword {
   USE
 }
 
-enum class PrimitiveKeyword {
-  CHR, STR,
-  U64, U32, U16, U8,
-  I64, I32, I16, I8,
-  FLOAT, DOUBLE, BOOL,
-}
-
 enum class ValueKeyword {
   TRUE,
   FALSE
@@ -315,11 +306,9 @@ enum class ValueKeyword {
 val LONGEST_TOKEN_LENGTH: Int = arrayOf(
   CodeToken.values().map(CodeToken::stringRepresentation),
   Keyword.values().map(Keyword::name),
-  PrimitiveKeyword.values().map(PrimitiveKeyword::name),
   ValueKeyword.values().map(ValueKeyword::name)
 ).maxOf { it.maxByOrNull(String::length)!!.length }
 val KEYWORDS = listOf(Keyword.values().map { it.name.lowercase() },
-  PrimitiveKeyword.values().map { it.name.lowercase() },
   ValueKeyword.values().map { it.name.lowercase() }).flatten()
 
 fun parseToken(string: String): Pair<Token, Int>? {
@@ -331,13 +320,11 @@ fun parseToken(string: String): Pair<Token, Int>? {
       else if (index != null && KEYWORDS[i].length > KEYWORDS[index].length && string.startsWith(KEYWORDS[i])) index = i
     }
     index?.let {
-      Keyword.values().getOrNull(it) ?: PrimitiveKeyword.values().getOrNull(it - Keyword.values().size)
-      ?: ValueKeyword.values()[it - Keyword.values().size - PrimitiveKeyword.values().size]
+      Keyword.values().getOrNull(it) ?: ValueKeyword.values()[it - Keyword.values().size]
     }?.let { keyword ->
       val length = keyword.name.length
       when (keyword) {
         is Keyword -> Token.KeywordToken(keyword)
-        is PrimitiveKeyword -> Token.PrimitiveKeywordToken(keyword)
         is ValueKeyword -> Token.ValueKeywordToken(keyword)
         else -> throw IllegalStateException("should never happen")
       }.let { Pair(it, length) }
