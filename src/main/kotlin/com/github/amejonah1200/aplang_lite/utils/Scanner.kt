@@ -6,7 +6,7 @@ import java.util.*
 open class Scanner<T>(val elements: List<T>) {
   var peek: Int = 0
     set(value) {
-      field = clamp(0, value, elements.size - 1)
+      field = clamp(0, value, elements.size)
     }
   var position: Int = 0
     set(value) {
@@ -79,8 +79,7 @@ open class Scanner<T>(val elements: List<T>) {
   fun isPeekEOF() = peek >= elements.size
 
   fun advancePosition(nb: Int) {
-    if (nb == 0) {
-      return; }
+    if (nb == 0) return
     if (position + nb < elements.size) {
       position += nb
     } else {
@@ -171,7 +170,11 @@ class CharScanner(val str: String) : Scanner<Char>(str.toCharArray().asList()) {
     nextChars(nb, consume = false, use_peek = true, fail_on_not_reach = fail_on_not_reach)
 
   fun peekSearch(str: String): Boolean =
-    nextChars(str.length, consume = false, use_peek = true, fail_on_not_reach = true).map(str::equals).orElse(false)
+    nextChars(str.length, consume = false, use_peek = true, fail_on_not_reach = true).map {
+      val result = str == it
+      if (!result) rewindPeek(str.length)
+      result
+    }.orElse(false)
 
   fun peekSearchChar(chr: Char): Boolean = peekChar().map { it == chr }.orElse(false)
   fun peekSearchChars(predicate: (Char) -> Boolean): String = searchNextChars(consume = false, use_peek = true, predicate = predicate)
