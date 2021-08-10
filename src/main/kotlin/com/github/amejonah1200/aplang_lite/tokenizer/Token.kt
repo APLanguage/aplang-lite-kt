@@ -2,7 +2,7 @@ package com.github.amejonah1200.aplang_lite.tokenizer
 
 import java.math.BigInteger
 
-abstract class Token {
+sealed class Token {
   data class KeywordToken(val keyword: Keyword) : Token()
 
   data class ValueKeywordToken(val keyword: ValueKeyword) : Token()
