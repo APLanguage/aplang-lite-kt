@@ -8,5 +8,12 @@ sealed class Expression {
 
   data class Path(val identifiers: List<GriddedObject<Token.IdentifierToken>>) : Expression()
 
-  data class UseDeclaration(val path: GriddedObject<Expression>?, val all: Boolean) : Expression()
+  data class UseDeclaration(val path: GriddedObject<Expression>?, val all: Boolean, val asOther: GriddedObject<Token.IdentifierToken>?) : Expression()
+
+  data class VarDeclaration(val identifier: GriddedObject<Token.IdentifierToken>, val type: GriddedObject<Type>?, val expr: GriddedObject<Expression>?) :
+    Expression()
+
+  data class Type(val path: Path)
+
+
 }

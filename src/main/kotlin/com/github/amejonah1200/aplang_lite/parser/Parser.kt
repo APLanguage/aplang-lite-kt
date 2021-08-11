@@ -2,6 +2,7 @@ package com.github.amejonah1200.aplang_lite.parser
 
 import com.github.amejonah1200.aplang_lite.tokenizer.CodeToken
 import com.github.amejonah1200.aplang_lite.tokenizer.Keyword
+import com.github.amejonah1200.aplang_lite.tokenizer.ParserException
 import com.github.amejonah1200.aplang_lite.tokenizer.Token
 import com.github.amejonah1200.aplang_lite.utils.GriddedObject
 import com.github.amejonah1200.aplang_lite.utils.MultiLineObject
@@ -30,7 +31,25 @@ class Parser(val scanner: TokenScanner) {
 
   fun class_decl(): GriddedObject<Expression>? = null
   fun fun_decl(): GriddedObject<Expression>? = null
-  fun var_decl(): GriddedObject<Expression>? = null
+  fun var_decl(): GriddedObject<Expression>? {
+    scanner.startSection()
+    val varTk = scanner.consumeMatchingKeywordToken(Keyword.VAR)
+    if (varTk == null) {
+      scanner.endSection(true)
+      return null
+    }
+    val identifier =
+      scanner.consumeMatchingInnerClass(Token.IdentifierToken::class.java) ?: throw ParserException("After var, there should be an identifier.")
+    scanner.startSection()
+    val type = scanner.consumeMatchingCodeToken(CodeToken.COLON)?.let { type() }
+    scanner.endSection(type == null)
+    scanner.startSection()
+    val expr = scanner.consumeMatchingCodeToken(CodeToken.EQUAL)?.let { expression() }
+    scanner.endSection(expr == null)
+    scanner.endSection()
+    return GriddedObject.of(varTk.startCoords(), Expression.VarDeclaration(identifier, type, expr), scanner.positionPreviousCoords().endCoords())
+  }
+
   fun use_decl(): GriddedObject<Expression.UseDeclaration>? {
     scanner.startSection()
     val useTk = scanner.consumeMatchingKeywordToken(Keyword.USE)
@@ -42,7 +61,17 @@ class Parser(val scanner: TokenScanner) {
     scanner.startSection()
     val star = scanner.consumeMatchingCodeToken(CodeToken.DOT)?.let { scanner.consumeMatchingCodeToken(CodeToken.STAR) }
     scanner.endSection(star == null)
-    return GriddedObject.of(useTk.startCoords(), Expression.UseDeclaration(path, star != null), path.obj.identifiers.last().endCoords())
+    var asOther: GriddedObject<Token.IdentifierToken>? = null
+    if (star == null) {
+      scanner.startSection()
+      asOther = scanner.consumeMatchingKeywordToken(Keyword.AS)?.let { scanner.consumeMatchingInnerClass(Token.IdentifierToken::class.java) }
+      scanner.endSection(asOther == null)
+    }
+    if (!scanner.isPositionEOF() && scanner.positionPreviousCoords().endCoords().y == scanner.positionCoords().startCoords().y) {
+      throw ParserException("After a use statement there should be an new-line.")
+    }
+    scanner.endSection()
+    return GriddedObject.of(useTk.startCoords(), Expression.UseDeclaration(path, star != null, asOther), path.obj.identifiers.last().endCoords())
   }
 
   fun statement(): GriddedObject<Expression>? = null
@@ -71,7 +100,7 @@ class Parser(val scanner: TokenScanner) {
   fun arguments(): GriddedObject<Expression>? = null
   fun block(): GriddedObject<Expression>? = null
 
-  fun type(): GriddedObject<Expression>? = null
+  fun type(): GriddedObject<Expression.Type>? = null
   fun array_type(): GriddedObject<Expression>? = null
 
   fun path(): GriddedObject<Expression.Path>? {
