@@ -1,9 +1,8 @@
 
   if, else, while, for, return, break,
-  var, val,
-  pub,
+  var,
   true, false,
-  class, super, this,
+  class, super, this, as, is
   use
 
   true,
