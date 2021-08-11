@@ -59,6 +59,7 @@ data class MultiLineObject<T>(val start: Point, override val obj: T, val end: Po
   constructor(startX: Int, startY: Int, obj: T, endX: Int, endY: Int) : this(Point(startX, startY), obj, Point(endX, endY))
 
   override fun startCoords() = start
+
   override fun endCoords() = end
 
   override fun expandTo(end: Point): GriddedObject<T> {
@@ -83,6 +84,10 @@ sealed class Area {
   abstract fun expandTo(end: Point): Area
 
   abstract fun <T> toObject(obj: T): GriddedObject<T>
+
+  abstract fun startCoords(): Point
+
+  abstract fun endCoords(): Point
 }
 
 data class OneLineArea(val start: Point, val length: Int) : Area() {
@@ -92,6 +97,10 @@ data class OneLineArea(val start: Point, val length: Int) : Area() {
     return if (start.y == end.y) OneLineArea(start, end.x - start.x)
     else MultiLineArea(start, end)
   }
+
+  override fun startCoords() = start
+
+  override fun endCoords() = Point(start.x + length, start.y)
 
   override fun <T> toObject(obj: T) = OneLineObject(start, obj, length)
 }
@@ -105,4 +114,8 @@ data class MultiLineArea(val start: Point, val end: Point) : Area() {
   }
 
   override fun <T> toObject(obj: T) = MultiLineObject(start, obj, end)
+
+  override fun startCoords() = start
+
+  override fun endCoords() = end
 }
