@@ -14,8 +14,10 @@ sealed class GriddedObject<out T>(open val obj: T) {
 
   abstract fun <T2> asGriddedObjectOfType(clazz: Class<T2>): GriddedObject<T2>?
 
-  inline fun <reified T2> asGriddedObjectOfType() : GriddedObject<T2>?{
-    return if(obj is T2) asGriddedObjectOfType((obj as T2)!!::class.java)
+  abstract fun <T2> repack(obj: T2): GriddedObject<T2>
+
+  inline fun <reified T2> asGriddedObjectOfType(): GriddedObject<T2>? {
+    return if (obj is T2) asGriddedObjectOfType((obj as T2)!!::class.java)
     else null
   }
 
@@ -49,9 +51,11 @@ data class OneLineObject<T>(val start: Point, override val obj: T, val length: I
 
   override fun <T2> asGriddedObjectOfType(clazz: Class<T2>): GriddedObject<T2>? {
     @Suppress("UNCHECKED_CAST")
-    return if(clazz.isInstance(obj)) this as OneLineObject<T2>
+    return if (clazz.isInstance(obj)) this as OneLineObject<T2>
     else null
   }
+
+  override fun <T2> repack(obj: T2) = OneLineObject(start, obj, length)
 }
 
 data class MultiLineObject<T>(val start: Point, override val obj: T, val end: Point) : GriddedObject<T>(obj) {
@@ -71,9 +75,11 @@ data class MultiLineObject<T>(val start: Point, override val obj: T, val end: Po
 
   override fun <T2> asGriddedObjectOfType(clazz: Class<T2>): GriddedObject<T2>? {
     @Suppress("UNCHECKED_CAST")
-    return if(clazz.isInstance(obj)) this as MultiLineObject<T2>
+    return if (clazz.isInstance(obj)) this as MultiLineObject<T2>
     else null
   }
+
+  override fun <T2> repack(obj: T2) = MultiLineObject(start, obj, end)
 }
 
 data class Point(val x: Int, val y: Int)
