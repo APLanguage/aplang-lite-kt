@@ -291,6 +291,7 @@ enum class CodeToken(val stringRepresentation: String) {
 }
 
 enum class Keyword {
+  FN,
   IF, ELSE, WHILE, FOR, RETURN, BREAK,
   VAR,
   CLASS, SUPER, THIS, AS, IS,
