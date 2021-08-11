@@ -10,10 +10,20 @@ sealed class Expression {
 
   data class UseDeclaration(val path: GriddedObject<Expression>?, val all: Boolean, val asOther: GriddedObject<Token.IdentifierToken>?) : Expression()
 
-  data class VarDeclaration(val identifier: GriddedObject<Token.IdentifierToken>, val type: GriddedObject<Type>?, val expr: GriddedObject<Expression>?) :
+  data class VarDeclaration(
+    val identifier: GriddedObject<Token.IdentifierToken>,
+    val type: GriddedObject<Type>?,
+    val expr: GriddedObject<Expression>?
+  ) :
     Expression()
 
   data class Type(val path: Path)
 
+  data class FunctionDeclaration(
+    val identifier: GriddedObject<Token.IdentifierToken>,
+    val parameters: Map<GriddedObject<Token.IdentifierToken>, GriddedObject<Type>>,
+    val type: GriddedObject<Type>?,
+    val block: GriddedObject<List<GriddedObject<Expression>>>
+  ) : Expression()
 
 }
