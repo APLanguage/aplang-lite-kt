@@ -5,7 +5,6 @@ import com.github.amejonah1200.aplang_lite.tokenizer.Keyword
 import com.github.amejonah1200.aplang_lite.tokenizer.ParserException
 import com.github.amejonah1200.aplang_lite.tokenizer.Token
 import com.github.amejonah1200.aplang_lite.utils.GriddedObject
-import com.github.amejonah1200.aplang_lite.utils.MultiLineObject
 import com.github.amejonah1200.aplang_lite.utils.TokenScanner
 
 class ParseException(msg: String) : RuntimeException(msg)
@@ -16,22 +15,44 @@ class Parser(val scanner: TokenScanner) {
     val uses = listOfUntilNull(this::use_decl)
     val declarations = listOfUntilNull(this::declaration)
     if (uses.isEmpty() && declarations.isEmpty()) return null
-    val startCoords = uses.ifEmpty { declarations }[0].startCoords()
-    val endCoords = uses.ifEmpty { declarations }.last().endCoords()
-    return MultiLineObject(
-      startCoords.x,
-      startCoords.y,
+    return GriddedObject.of(
+      uses.ifEmpty { declarations }[0].startCoords(),
       Expression.Program(uses, declarations),
-      endCoords.x,
-      endCoords.y
+      uses.ifEmpty { declarations }.last().endCoords()
     )
   }
 
   fun declaration(): GriddedObject<Expression>? = class_decl()?.let { fun_decl() }?.let { var_decl() }
 
   fun class_decl(): GriddedObject<Expression>? = null
-  fun fun_decl(): GriddedObject<Expression>? = null
-  fun var_decl(): GriddedObject<Expression>? {
+  
+  fun fun_decl(): GriddedObject<Expression.FunctionDeclaration>? {
+    scanner.startSection()
+    val fnTk = scanner.consumeMatchingKeywordToken(Keyword.FN)
+    if (fnTk == null) {
+      scanner.endSection(true)
+      return null
+    }
+    val identifier =
+      scanner.consumeMatchingInnerClass(Token.IdentifierToken::class.java) ?: throw ParserException("After fn, there should be an identifier.")
+    expectCodeToken(scanner, CodeToken.LEFT_PAREN, "fun_decl, opening paren")
+    val parameters = mutableMapOf<GriddedObject<Token.IdentifierToken>, GriddedObject<Expression.Type>>()
+    if(scanner.peekMatchingCodeToken(CodeToken.RIGHT_PAREN) == null) {
+      scanner.startSection()
+
+      // Parameters
+      scanner.endSection()
+    }
+    scanner.consumeMatchingCodeToken(CodeToken.RIGHT_PAREN)
+    scanner.startSection()
+    val returnType = scanner.consumeMatchingCodeToken(CodeToken.COLON)?.let { type() }
+    scanner.endSection(returnType == null)
+    val block = block() ?: throw ParserException("Every Function has a body.")
+    scanner.endSection()
+    return GriddedObject.of(fnTk.startCoords(), Expression.FunctionDeclaration(identifier, parameters, returnType, block), block.endCoords())
+  }
+
+  fun var_decl(): GriddedObject<Expression.VarDeclaration>? {
     scanner.startSection()
     val varTk = scanner.consumeMatchingKeywordToken(Keyword.VAR)
     if (varTk == null) {
@@ -98,10 +119,9 @@ class Parser(val scanner: TokenScanner) {
 
   fun parameters(): GriddedObject<Expression>? = null
   fun arguments(): GriddedObject<Expression>? = null
-  fun block(): GriddedObject<Expression>? = null
+  fun block(): GriddedObject<List<GriddedObject<Expression>>>? = null
 
-  fun type(): GriddedObject<Expression.Type>? = null
-  fun array_type(): GriddedObject<Expression>? = null
+  fun type(): GriddedObject<Expression.Type>? = path()?.let { it.repack(Expression.Type(it.obj)) }
 
   fun path(): GriddedObject<Expression.Path>? {
     scanner.startSection()
@@ -134,4 +154,19 @@ private fun <T> listOfUntilNull(generator: () -> T?): List<T> {
     temp = generator()
   }
   return list.toList()
+}
+
+private fun expectCodeToken(scanner: TokenScanner, codeToken: CodeToken, message: String? = null) {
+  val tk = scanner.consumeMatchingInnerClass(Token.SignToken::class.java)
+    ?: throw ParserException(
+      (if (message == null) "" else "$message. ") + "Expected Token.SignToken at ${
+        scanner.positionCoords().startCoords()
+      }, got " + (scanner.consume()?.obj ?: "EOF")
+    )
+
+  if (tk.obj.codeToken != codeToken) throw ParserException(
+    (if (message == null) "" else "$message. ") + "Expected $codeToken at ${
+      scanner.positionCoords().startCoords()
+    }, got ${tk.obj.codeToken}"
+  )
 }
