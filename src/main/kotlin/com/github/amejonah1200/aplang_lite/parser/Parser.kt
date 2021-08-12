@@ -25,7 +25,7 @@ class Parser(val scanner: TokenScanner) {
   fun declaration(): GriddedObject<Expression>? = class_decl()?.let { fun_decl() }?.let { var_decl() }
 
   fun class_decl(): GriddedObject<Expression>? = null
-  
+
   fun fun_decl(): GriddedObject<Expression.FunctionDeclaration>? {
     scanner.startSection()
     val fnTk = scanner.consumeMatchingKeywordToken(Keyword.FN)
@@ -34,16 +34,25 @@ class Parser(val scanner: TokenScanner) {
       return null
     }
     val identifier =
-      scanner.consumeMatchingInnerClass(Token.IdentifierToken::class.java) ?: throw ParserException("After fn, there should be an identifier.")
+      scanner.consumeMatchingInnerClass(Token.IdentifierToken::class.java)
+        ?: throw ParserException("After fn, there should be an identifier.") // TODO better exceptions
     expectCodeToken(scanner, CodeToken.LEFT_PAREN, "fun_decl, opening paren")
     val parameters = mutableMapOf<GriddedObject<Token.IdentifierToken>, GriddedObject<Expression.Type>>()
-    if(scanner.peekMatchingCodeToken(CodeToken.RIGHT_PAREN) == null) {
+    if (scanner.peekMatchingCodeToken(CodeToken.RIGHT_PAREN) == null) {
       scanner.startSection()
-
-      // Parameters
+      val parameterIdentifier =
+        scanner.consumeMatchingInnerClass(Token.IdentifierToken::class.java) ?: throw ParserException("After ( no )? So identifier expected.")
+      expectCodeToken(scanner, CodeToken.COLON, "fun_decl, parameter colon")
+      parameters[parameterIdentifier] = type() ?: throw ParserException("Each parameter must have a type.")
+      while (scanner.peekMatchingCodeToken(CodeToken.COMMA) != null) {
+        val otherParameterIdentifier =
+          scanner.consumeMatchingInnerClass(Token.IdentifierToken::class.java) ?: throw ParserException("After comma identifier expected.")
+        expectCodeToken(scanner, CodeToken.COLON, "fun_decl, parameter colon")
+        parameters[otherParameterIdentifier] = type() ?: throw ParserException("Each parameter must have a type.")
+      }
       scanner.endSection()
     }
-    scanner.consumeMatchingCodeToken(CodeToken.RIGHT_PAREN)
+    expectCodeToken(scanner, CodeToken.RIGHT_PAREN, "fun_decl, closing paren.")
     scanner.startSection()
     val returnType = scanner.consumeMatchingCodeToken(CodeToken.COLON)?.let { type() }
     scanner.endSection(returnType == null)
