@@ -30,6 +30,6 @@ sealed class Expression {
     val identifier: GriddedObject<Token.IdentifierToken>,
     val superTypes: List<GriddedObject<Type>>,
     val content: GriddedObject<Program>?
-  )
+  ) : Expression()
 
 }

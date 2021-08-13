@@ -22,7 +22,7 @@ class Parser(val scanner: TokenScanner) {
     )
   }
 
-  fun declaration(): GriddedObject<Expression>? = class_decl()?.let { fun_decl() }?.let { var_decl() }
+  fun declaration(): GriddedObject<Expression>? = (class_decl() ?: fun_decl()) ?: var_decl()
 
   fun class_decl(): GriddedObject<Expression.ClassDeclaration>? {
     scanner.startSection()
@@ -155,7 +155,6 @@ class Parser(val scanner: TokenScanner) {
   fun call(): GriddedObject<Expression>? = null
   fun primary(): GriddedObject<Expression>? = null
 
-  fun parameters(): GriddedObject<Expression>? = null
   fun arguments(): GriddedObject<Expression>? = null
   fun block(): GriddedObject<List<GriddedObject<Expression>>>? = null
 
