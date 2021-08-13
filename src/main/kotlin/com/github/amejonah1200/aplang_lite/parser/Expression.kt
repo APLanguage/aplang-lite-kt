@@ -26,4 +26,10 @@ sealed class Expression {
     val block: GriddedObject<List<GriddedObject<Expression>>>
   ) : Expression()
 
+  data class ClassDeclaration(
+    val identifier: GriddedObject<Token.IdentifierToken>,
+    val superTypes: List<GriddedObject<Type>>,
+    val content: GriddedObject<Program>?
+  )
+
 }

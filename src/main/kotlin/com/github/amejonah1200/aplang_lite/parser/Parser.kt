@@ -11,7 +11,7 @@ class ParseException(msg: String) : RuntimeException(msg)
 
 class Parser(val scanner: TokenScanner) {
 
-  fun program(): GriddedObject<Expression>? {
+  fun program(): GriddedObject<Expression.Program>? {
     val uses = listOfUntilNull(this::use_decl)
     val declarations = listOfUntilNull(this::declaration)
     if (uses.isEmpty() && declarations.isEmpty()) return null
@@ -24,7 +24,36 @@ class Parser(val scanner: TokenScanner) {
 
   fun declaration(): GriddedObject<Expression>? = class_decl()?.let { fun_decl() }?.let { var_decl() }
 
-  fun class_decl(): GriddedObject<Expression>? = null
+  fun class_decl(): GriddedObject<Expression.ClassDeclaration>? {
+    scanner.startSection()
+    val classTk = scanner.consumeMatchingKeywordToken(Keyword.FN)
+    if (classTk == null) {
+      scanner.endSection(true)
+      return null
+    }
+    val identifier =
+      scanner.consumeMatchingInnerClass(Token.IdentifierToken::class.java)
+        ?: throw ParserException("After class, there should be an identifier.") // TODO better exceptions
+    val superTypes = mutableListOf<GriddedObject<Expression.Type>>()
+    if (scanner.peekMatchingCodeToken(CodeToken.COLON) != null) {
+      superTypes.add(type() ?: throw ParserException("After : a Type expected."))
+      while (scanner.consumeMatchingCodeToken(CodeToken.COMMA) != null) {
+        superTypes.add(type() ?: throw ParserException("After , a Type expected."))
+      }
+    }
+    var program: GriddedObject<Expression.Program>? = null
+    if (scanner.peekMatchingCodeToken(CodeToken.LEFT_BRACE) != null) {
+      program = program()
+      expectCodeToken(scanner, CodeToken.RIGHT_BRACE, "class_decl, close brace")
+    } else if (!scanner.isPositionEOF() && scanner.positionPreviousCoords().endCoords().y == scanner.positionCoords().startCoords().y) {
+      throw ParserException("After an class statement (with no braces) there must be an new-line.")
+    }
+    return GriddedObject.of(
+      classTk.startCoords(),
+      Expression.ClassDeclaration(identifier, superTypes, program),
+      scanner.positionPreviousCoords().endCoords()
+    )
+  }
 
   fun fun_decl(): GriddedObject<Expression.FunctionDeclaration>? {
     scanner.startSection()
@@ -44,7 +73,7 @@ class Parser(val scanner: TokenScanner) {
         scanner.consumeMatchingInnerClass(Token.IdentifierToken::class.java) ?: throw ParserException("After ( no )? So identifier expected.")
       expectCodeToken(scanner, CodeToken.COLON, "fun_decl, parameter colon")
       parameters[parameterIdentifier] = type() ?: throw ParserException("Each parameter must have a type.")
-      while (scanner.peekMatchingCodeToken(CodeToken.COMMA) != null) {
+      while (scanner.consumeMatchingCodeToken(CodeToken.COMMA) != null) {
         val otherParameterIdentifier =
           scanner.consumeMatchingInnerClass(Token.IdentifierToken::class.java) ?: throw ParserException("After comma identifier expected.")
         expectCodeToken(scanner, CodeToken.COLON, "fun_decl, parameter colon")
@@ -98,7 +127,7 @@ class Parser(val scanner: TokenScanner) {
       scanner.endSection(asOther == null)
     }
     if (!scanner.isPositionEOF() && scanner.positionPreviousCoords().endCoords().y == scanner.positionCoords().startCoords().y) {
-      throw ParserException("After a use statement there should be an new-line.")
+      throw ParserException("After a use statement there must be an new-line.")
     }
     scanner.endSection()
     return GriddedObject.of(useTk.startCoords(), Expression.UseDeclaration(path, star != null, asOther), path.obj.identifiers.last().endCoords())
