@@ -36,5 +36,7 @@ sealed class Expression {
     val identifier: GriddedObject<Token.IdentifierToken>,
     val expr: GriddedObject<Expression>,
     val statement: GriddedObject<Expression>
-  ): Expression()
+  ) : Expression()
+
+  data class ReturnStatement(val expr: GriddedObject<Expression>?) : Expression()
 }
