@@ -23,7 +23,7 @@ sealed class Expression {
     val identifier: GriddedObject<Token.IdentifierToken>,
     val parameters: Map<GriddedObject<Token.IdentifierToken>, GriddedObject<Type>>,
     val type: GriddedObject<Type>?,
-    val block: GriddedObject<List<GriddedObject<Expression>>>
+    val block: GriddedObject<Block>
   ) : Expression()
 
   data class ClassDeclaration(
@@ -49,4 +49,6 @@ sealed class Expression {
       return javaClass.hashCode()
     }
   }
+
+  data class Block(val statements: List<GriddedObject<Expression>>) : Expression()
 }

@@ -22,7 +22,7 @@ class Parser(val scanner: TokenScanner) {
     )
   }
 
-  fun declaration(): GriddedObject<Expression>? = (class_decl() ?: fun_decl()) ?: var_decl()
+  fun declaration(): GriddedObject<Expression>? = class_decl() ?: fun_decl() ?: var_decl()
 
   fun class_decl(): GriddedObject<Expression.ClassDeclaration>? {
     scanner.startSection()
@@ -136,7 +136,8 @@ class Parser(val scanner: TokenScanner) {
     return GriddedObject.of(useTk.startCoords(), Expression.UseDeclaration(path, star != null, asOther), path.obj.identifiers.last().endCoords())
   }
 
-  fun statement(): GriddedObject<Expression>? = ((((for_stmt() ?: return_stmt()) ?: break_stmt()) ?: while_stmt()) ?: var_decl()) ?: exp_stmt()
+  fun statement(): GriddedObject<Expression>? = for_stmt() ?: return_stmt() ?: break_stmt() ?: while_stmt() ?: var_decl() ?: block() ?: exp_stmt()
+
   fun for_stmt(): GriddedObject<Expression>? {
     scanner.startSection()
     val forTk = scanner.consumeMatchingKeywordToken(Keyword.FOR)
@@ -205,7 +206,7 @@ class Parser(val scanner: TokenScanner) {
   fun primary(): GriddedObject<Expression>? = null
 
   fun arguments(): GriddedObject<Expression>? = null
-  fun block(): GriddedObject<List<GriddedObject<Expression>>>? = null
+  fun block(): GriddedObject<Expression.Block>? = null
 
   fun type(): GriddedObject<Expression.Type>? = path()?.let { it.repack(Expression.Type(it.obj)) }
 
