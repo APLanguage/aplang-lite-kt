@@ -206,7 +206,13 @@ class Parser(val scanner: TokenScanner) {
     return GriddedObject.of(whileTk.startCoords(), Expression.WhileStatement(expr, statement), scanner.positionCoords().endCoords())
   }
 
-  fun exp_stmt(): GriddedObject<Expression>? = null
+  fun exp_stmt(): GriddedObject<Expression>? {
+    val expr = expression() ?: return null
+    if (!scanner.isPositionEOF() && scanner.positionPreviousCoords().endCoords().y == scanner.positionCoords().startCoords().y) {
+      throw ParserException("After an expr there must be a new-line.")
+    }
+    return expr
+  }
 
   fun expression(): GriddedObject<Expression>? = null
   fun assignment(): GriddedObject<Expression>? = null
