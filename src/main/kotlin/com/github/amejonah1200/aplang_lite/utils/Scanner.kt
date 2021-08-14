@@ -256,28 +256,35 @@ open class GriddedScanner<T>(elements: List<GriddedObject<T>>) : Scanner<Gridded
 fun GriddedScanner<Token>.toTokenScanner() = TokenScanner(elements)
 
 class TokenScanner(elements: List<GriddedObject<Token>>) : GriddedScanner<Token>(elements) {
-  fun consumeMatchingKeywordToken(keyword: Keyword): GriddedObject<Token>? {
+  fun consumeMatchingKeywordToken(keyword: Keyword): GriddedObject<Token.KeywordToken>? {
     val griddedObject = consumeMatchingInnerClass(Token.KeywordToken::class.java) ?: return null
     if (griddedObject.obj.keyword == keyword) return griddedObject
     rewindPosition(1)
     return null
   }
 
-  fun consumeMatchingCodeToken(codeToken: CodeToken): GriddedObject<Token>? {
+  fun consumeMatchingCodeToken(codeToken: CodeToken): GriddedObject<Token.SignToken>? {
     val griddedObject = consumeMatchingInnerClass(Token.SignToken::class.java) ?: return null
     if (griddedObject.obj.codeToken == codeToken) return griddedObject
     rewindPosition(1)
     return null
   }
 
-  fun peekMatchingKeywordToken(keyword: Keyword): GriddedObject<Token>? {
+  fun consumeMatchingCodeTokens(tokens: Array<CodeToken>): GriddedObject<Token.SignToken>? {
+    val griddedObject = consumeMatchingInnerClass(Token.SignToken::class.java) ?: return null
+    if (griddedObject.obj.codeToken in tokens) return griddedObject
+    rewindPosition(1)
+    return null
+  }
+
+  fun peekMatchingKeywordToken(keyword: Keyword): GriddedObject<Token.KeywordToken>? {
     val griddedObject = peekMatchingInnerClass(Token.KeywordToken::class.java) ?: return null
     if (griddedObject.obj.keyword == keyword) return griddedObject
     rewindPosition(1)
     return null
   }
 
-  fun peekMatchingCodeToken(codeToken: CodeToken): GriddedObject<Token>? {
+  fun peekMatchingCodeToken(codeToken: CodeToken): GriddedObject<Token.SignToken>? {
     val griddedObject = peekMatchingInnerClass(Token.SignToken::class.java) ?: return null
     if (griddedObject.obj.codeToken == codeToken) return griddedObject
     rewindPosition(1)

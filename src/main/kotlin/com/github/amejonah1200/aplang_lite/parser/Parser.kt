@@ -214,8 +214,25 @@ class Parser(val scanner: TokenScanner) {
     return expr
   }
 
-  fun expression(): GriddedObject<Expression>? = null
-  fun assignment(): GriddedObject<Expression>? = null
+  fun expression(): GriddedObject<Expression>? = assignment()
+  fun assignment(): GriddedObject<Expression>? {
+    val call = call() ?: return if_expr()
+    val tk = scanner.consumeMatchingCodeTokens(
+      arrayOf(
+        CodeToken.PLUS_EQUAL, CodeToken.MINUS_EQUAL, CodeToken.STAR_EQUAL, CodeToken.STAR_STAR_EQUAL, CodeToken.SLASH_EQUAL,
+        CodeToken.PERCENTAGE_EQUAL,
+        CodeToken.AMPERSAND_EQUAL, CodeToken.VERTICAL_BAR_EQUAL, CodeToken.CIRCUMFLEX_EQUAL, CodeToken.TILDE_EQUAL,
+        CodeToken.LESS_LESS_EQUAL, CodeToken.GREATER_GREATER_EQUAL, CodeToken.GREATER_GREATER_GREATER_EQUAL,
+        CodeToken.EQUAL
+      )
+    ) ?: return if_expr()
+    return GriddedObject.of(
+      call.startCoords(),
+      Expression.Assignment(call, tk, assignment() ?: throw ParserException("No value to assign provided.")),
+      scanner.positionPreviousCoords().endCoords()
+    )
+  }
+
   fun if_expr(): GriddedObject<Expression>? = null
   fun logic_or(): GriddedObject<Expression>? = null
   fun logic_and(): GriddedObject<Expression>? = null
