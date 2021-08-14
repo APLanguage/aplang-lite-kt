@@ -39,4 +39,14 @@ sealed class Expression {
   ) : Expression()
 
   data class ReturnStatement(val expr: GriddedObject<Expression>?) : Expression()
+
+  class BreakStatement : Expression() {
+    override fun equals(other: Any?): Boolean {
+      return other != null && other.javaClass.isInstance(this)
+    }
+
+    override fun hashCode(): Int {
+      return javaClass.hashCode()
+    }
+  }
 }

@@ -170,7 +170,20 @@ class Parser(val scanner: TokenScanner) {
     return GriddedObject.of(returnTk.startCoords(), Expression.ReturnStatement(expr), scanner.positionCoords().endCoords())
   }
 
-  fun break_stmt(): GriddedObject<Expression>? = null
+  fun break_stmt(): GriddedObject<Expression>? {
+    scanner.startSection()
+    val breakTk = scanner.consumeMatchingKeywordToken(Keyword.BREAK)
+    if (breakTk == null) {
+      scanner.endSection(true)
+      return null
+    }
+    if (!scanner.isPositionEOF() && breakTk.endCoords().y == scanner.positionCoords().startCoords().y) {
+      throw ParserException("After a break statement there must be an new-line.")
+    }
+    scanner.endSection()
+    return GriddedObject.of(breakTk.startCoords(), Expression.BreakStatement(), scanner.positionCoords().endCoords())
+  }
+
   fun while_stmt(): GriddedObject<Expression>? = null
   fun var_stmt(): GriddedObject<Expression>? = null
   fun exp_stmt(): GriddedObject<Expression>? = null
