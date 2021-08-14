@@ -105,6 +105,9 @@ class Parser(val scanner: TokenScanner) {
     scanner.startSection()
     val expr = scanner.consumeMatchingCodeToken(CodeToken.EQUAL)?.let { expression() }
     scanner.endSection(expr == null)
+    if (!scanner.isPositionEOF() && scanner.positionPreviousCoords().endCoords().y == scanner.positionCoords().startCoords().y) {
+      throw ParserException("After a var declaration there must be an new-line.")
+    }
     scanner.endSection()
     return GriddedObject.of(varTk.startCoords(), Expression.VarDeclaration(identifier, type, expr), scanner.positionPreviousCoords().endCoords())
   }
@@ -133,7 +136,7 @@ class Parser(val scanner: TokenScanner) {
     return GriddedObject.of(useTk.startCoords(), Expression.UseDeclaration(path, star != null, asOther), path.obj.identifiers.last().endCoords())
   }
 
-  fun statement(): GriddedObject<Expression>? = ((((for_stmt() ?: return_stmt()) ?: break_stmt()) ?: while_stmt()) ?: var_stmt()) ?: exp_stmt()
+  fun statement(): GriddedObject<Expression>? = ((((for_stmt() ?: return_stmt()) ?: break_stmt()) ?: while_stmt()) ?: var_decl()) ?: exp_stmt()
   fun for_stmt(): GriddedObject<Expression>? {
     scanner.startSection()
     val forTk = scanner.consumeMatchingKeywordToken(Keyword.FOR)
@@ -185,7 +188,6 @@ class Parser(val scanner: TokenScanner) {
   }
 
   fun while_stmt(): GriddedObject<Expression>? = null
-  fun var_stmt(): GriddedObject<Expression>? = null
   fun exp_stmt(): GriddedObject<Expression>? = null
 
   fun expression(): GriddedObject<Expression>? = null
