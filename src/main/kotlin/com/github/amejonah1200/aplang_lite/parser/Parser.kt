@@ -133,8 +133,25 @@ class Parser(val scanner: TokenScanner) {
     return GriddedObject.of(useTk.startCoords(), Expression.UseDeclaration(path, star != null, asOther), path.obj.identifiers.last().endCoords())
   }
 
-  fun statement(): GriddedObject<Expression>? = null
-  fun for_stmt(): GriddedObject<Expression>? = null
+  fun statement(): GriddedObject<Expression>? = ((((for_stmt() ?: return_stmt()) ?: break_stmt()) ?: while_stmt()) ?: var_stmt()) ?: exp_stmt()
+  fun for_stmt(): GriddedObject<Expression>? {
+    scanner.startSection()
+    val forTk = scanner.consumeMatchingKeywordToken(Keyword.FOR)
+    if (forTk == null) {
+      scanner.endSection(true)
+      return null
+    }
+    expectCodeToken(scanner, CodeToken.LEFT_PAREN, "for_stmt, open paren")
+    val identifier =
+      scanner.consumeMatchingInnerClass(Token.IdentifierToken::class.java) ?: throw ParserException("After ( identifier expected.")
+    expectCodeToken(scanner, CodeToken.COLON, "for_stmt, separator")
+    val expr = expression() ?: throw ParserException("No expression to iterate through provided.")
+    expectCodeToken(scanner, CodeToken.RIGHT_PAREN, "for_stmt, close paren")
+    val statement = statement() ?: throw ParserException("No statement for the fo stmt provided!")
+    scanner.endSection()
+    return GriddedObject.of(forTk.startCoords(), Expression.ForStatement(identifier, expr, statement), statement.endCoords())
+  }
+
   fun return_stmt(): GriddedObject<Expression>? = null
   fun break_stmt(): GriddedObject<Expression>? = null
   fun while_stmt(): GriddedObject<Expression>? = null

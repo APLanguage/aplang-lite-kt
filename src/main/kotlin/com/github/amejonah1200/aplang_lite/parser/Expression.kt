@@ -32,4 +32,9 @@ sealed class Expression {
     val content: GriddedObject<Program>?
   ) : Expression()
 
+  data class ForStatement(
+    val identifier: GriddedObject<Token.IdentifierToken>,
+    val expr: GriddedObject<Expression>,
+    val statement: GriddedObject<Expression>
+  ): Expression()
 }
