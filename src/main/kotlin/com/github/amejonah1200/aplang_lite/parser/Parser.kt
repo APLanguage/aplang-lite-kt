@@ -188,7 +188,24 @@ class Parser(val scanner: TokenScanner) {
     return GriddedObject.of(breakTk.startCoords(), Expression.BreakStatement(), scanner.positionCoords().endCoords())
   }
 
-  fun while_stmt(): GriddedObject<Expression>? = null
+  fun while_stmt(): GriddedObject<Expression>? {
+    scanner.startSection()
+    val whileTk = scanner.consumeMatchingKeywordToken(Keyword.WHILE)
+    if (whileTk == null) {
+      scanner.endSection(true)
+      return null
+    }
+    expectCodeToken(scanner, CodeToken.LEFT_PAREN, "while_stmt, open paren")
+    val expr = expression() ?: throw ParserException("No expression to have as condition for while loop provided.")
+    expectCodeToken(scanner, CodeToken.RIGHT_PAREN, "while_stmt, close paren")
+    var statement: GriddedObject<Expression>? = null
+    if (!scanner.isPositionEOF() && whileTk.endCoords().y == scanner.positionCoords().startCoords().y) {
+      statement = statement()
+    }
+    scanner.endSection()
+    return GriddedObject.of(whileTk.startCoords(), Expression.WhileStatement(expr, statement), scanner.positionCoords().endCoords())
+  }
+
   fun exp_stmt(): GriddedObject<Expression>? = null
 
   fun expression(): GriddedObject<Expression>? = null
