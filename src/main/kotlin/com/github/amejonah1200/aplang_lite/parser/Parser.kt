@@ -62,20 +62,16 @@ class Parser(val scanner: TokenScanner) {
       scanner.endSection(true)
       return null
     }
-    val identifier =
-      scanner.consumeMatchingInnerClass(Token.IdentifierToken::class.java)
-        ?: throw ParserException("After fn, there should be an identifier.") // TODO better exceptions
+    val identifier = expectIdentifier(scanner, "fun_decl, After fn")
     expectCodeToken(scanner, CodeToken.LEFT_PAREN, "fun_decl, opening paren")
     val parameters = mutableMapOf<GriddedObject<Token.IdentifierToken>, GriddedObject<Expression.Type>>()
     if (scanner.peekMatchingCodeToken(CodeToken.RIGHT_PAREN) == null) {
       scanner.startSection()
-      val parameterIdentifier =
-        scanner.consumeMatchingInnerClass(Token.IdentifierToken::class.java) ?: throw ParserException("After ( no )? So identifier expected.")
+      val parameterIdentifier = expectIdentifier(scanner, "fun_decl, After ( no )")
       expectCodeToken(scanner, CodeToken.COLON, "fun_decl, parameter colon")
       parameters[parameterIdentifier] = type() ?: throw ParserException("Each parameter must have a type.")
       while (scanner.consumeMatchingCodeToken(CodeToken.COMMA) != null) {
-        val otherParameterIdentifier =
-          scanner.consumeMatchingInnerClass(Token.IdentifierToken::class.java) ?: throw ParserException("After comma identifier expected.")
+        val otherParameterIdentifier = expectIdentifier(scanner, "fun_decl, After ,")
         expectCodeToken(scanner, CodeToken.COLON, "fun_decl, parameter colon")
         parameters[otherParameterIdentifier] = type() ?: throw ParserException("Each parameter must have a type.")
       }
@@ -97,8 +93,7 @@ class Parser(val scanner: TokenScanner) {
       scanner.endSection(true)
       return null
     }
-    val identifier =
-      scanner.consumeMatchingInnerClass(Token.IdentifierToken::class.java) ?: throw ParserException("After var, there should be an identifier.")
+    val identifier = expectIdentifier(scanner, "var_decl, After var")
     scanner.startSection()
     val type = scanner.consumeMatchingCodeToken(CodeToken.COLON)?.let { type() }
     scanner.endSection(type == null)
@@ -147,8 +142,7 @@ class Parser(val scanner: TokenScanner) {
       return null
     }
     expectCodeToken(scanner, CodeToken.LEFT_PAREN, "for_stmt, open paren")
-    val identifier =
-      scanner.consumeMatchingInnerClass(Token.IdentifierToken::class.java) ?: throw ParserException("After ( identifier expected.")
+    val identifier = expectIdentifier(scanner, "for_stmt, After (")
     expectCodeToken(scanner, CodeToken.COLON, "for_stmt, separator")
     val expr = expression() ?: throw ParserException("No expression to iterate through provided.")
     expectCodeToken(scanner, CodeToken.RIGHT_PAREN, "for_stmt, close paren")
@@ -381,4 +375,13 @@ private fun expectKeywordToken(scanner: TokenScanner, keyword: Keyword, message:
       scanner.positionCoords().startCoords()
     }, got ${tk.obj.keyword}"
   )
+}
+
+private fun expectIdentifier(scanner: TokenScanner, message: String? = null): GriddedObject<Token.IdentifierToken> {
+  return scanner.consumeMatchingInnerClass(Token.IdentifierToken::class.java)
+    ?: throw ParserException(
+      (if (message == null) "" else "$message. ") + "Expected Token.IdentifierToken at ${
+        scanner.positionCoords().startCoords()
+      }, got " + (scanner.consume()?.obj ?: "EOF")
+    )
 }
