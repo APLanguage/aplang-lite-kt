@@ -342,7 +342,19 @@ class Parser(val scanner: TokenScanner) {
   }
 
   fun primary(): GriddedObject<Expression> = throw NotImplementedError("primary")
-  fun block(): GriddedObject<Expression.Block>? = throw NotImplementedError("block")
+  
+  fun block(): GriddedObject<Expression.Block>? {
+    scanner.startSection()
+    val openBrace = scanner.consumeMatchingCodeToken(CodeToken.LEFT_BRACE) ?: return null
+    val stmts = mutableListOf<GriddedObject<Expression>>()
+    while (!scanner.isPositionEOF() && scanner.peekMatchingCodeToken(CodeToken.RIGHT_BRACE) == null) {
+      scanner.advancePosition(1)
+      stmts.add(var_decl() ?: statement())
+    }
+    expectCodeToken(scanner, CodeToken.RIGHT_BRACE, "block, closing brace")
+    scanner.endSection()
+    return GriddedObject.of(openBrace.startCoords(), Expression.Block(stmts), scanner.positionPreviousCoords().endCoords())
+  }
 
   fun type(): GriddedObject<Expression.Type>? = path()?.let { it.repack(Expression.Type(it.obj)) }
 
