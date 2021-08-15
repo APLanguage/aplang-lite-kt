@@ -228,7 +228,7 @@ class Parser(val scanner: TokenScanner) {
   fun exp_stmt(): GriddedObject<Expression> {
     val expr = expression()
     if (!scanner.isPositionEOF() && scanner.positionPreviousCoords().endCoords().y == scanner.positionCoords().startCoords().y) {
-      throw ParserException("After an expr there must be a new-line.")
+      throw ParserException("After an expr there must be a new-line. ${expr.endCoords()}")
     }
     return expr
   }
@@ -348,11 +348,16 @@ class Parser(val scanner: TokenScanner) {
     }, scanner.positionPreviousCoords().endCoords())
   }
 
-  fun primary(): GriddedObject<Expression.Primary> {
+  fun primary(): GriddedObject<Expression> {
     val tk = scanner.consume() ?: throw ParserException("No EOF expected!")
     return when (tk.obj) {
       is Token.IdentifierToken -> tk.repack(Expression.Primary.IdentifierExpression(tk.obj as Token.IdentifierToken))
       is Token.ValueToken -> tk.repack(Expression.Primary.DirectValue(tk.obj as Token.ValueToken))
+      is Token.SignToken -> {
+        if((tk.obj as Token.SignToken).codeToken == CodeToken.LEFT_PAREN)
+          expression().also { expectCodeToken(scanner, CodeToken.RIGHT_PAREN, "primary, (expression) close paren") }
+        else throw ParserException("Identifier, ValueToken or ( expected on ${tk.startCoords()}")
+      }
       else -> throw ParserException("Unexpected Token: $tk")
     }
   }
