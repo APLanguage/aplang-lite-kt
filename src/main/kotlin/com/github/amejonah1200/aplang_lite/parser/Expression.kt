@@ -14,8 +14,7 @@ sealed class Expression {
     val identifier: GriddedObject<Token.IdentifierToken>,
     val type: GriddedObject<Type>?,
     val expr: GriddedObject<Expression>?
-  ) :
-    Expression()
+  ) : Expression()
 
   data class Type(val path: Path)
 

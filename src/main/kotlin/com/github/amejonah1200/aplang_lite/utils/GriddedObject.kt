@@ -34,7 +34,7 @@ sealed class GriddedObject<out T>(open val obj: T) {
 
 }
 
-data class OneLineObject<T>(val start: Point, override val obj: T, val length: Int) : GriddedObject<T>(obj) {
+class OneLineObject<T>(val start: Point, override val obj: T, val length: Int) : GriddedObject<T>(obj) {
 
   constructor(x: Int, y: Int, obj: T, length: Int) : this(Point(x, y), obj, length)
 
@@ -56,9 +56,13 @@ data class OneLineObject<T>(val start: Point, override val obj: T, val length: I
   }
 
   override fun <T2> repack(obj: T2) = OneLineObject(start, obj, length)
+
+  override fun toString(): String {
+    return "[${start.x} + $length:${start.y} $obj]"
+  }
 }
 
-data class MultiLineObject<T>(val start: Point, override val obj: T, val end: Point) : GriddedObject<T>(obj) {
+class MultiLineObject<T>(val start: Point, override val obj: T, val end: Point) : GriddedObject<T>(obj) {
 
   constructor(startX: Int, startY: Int, obj: T, endX: Int, endY: Int) : this(Point(startX, startY), obj, Point(endX, endY))
 
@@ -80,6 +84,10 @@ data class MultiLineObject<T>(val start: Point, override val obj: T, val end: Po
   }
 
   override fun <T2> repack(obj: T2) = MultiLineObject(start, obj, end)
+
+  override fun toString(): String {
+    return "[${start.x}:${start.y} -> ${end.x}:${end.y} $obj]"
+  }
 }
 
 data class Point(val x: Int, val y: Int)
