@@ -6,6 +6,7 @@ import com.github.amejonah1200.aplang_lite.tokenizer.ParserException
 import com.github.amejonah1200.aplang_lite.tokenizer.Token
 import com.github.amejonah1200.aplang_lite.utils.GriddedObject
 import com.github.amejonah1200.aplang_lite.utils.TokenScanner
+import com.github.amejonah1200.aplang_lite.utils.listOfUntilNull
 
 class ParseException(msg: String) : RuntimeException(msg)
 
@@ -273,7 +274,7 @@ class Parser(val scanner: TokenScanner) {
     )
   }
 
-  fun binaryOp(ops: Array<CodeToken>, next: () -> GriddedObject<Expression>): GriddedObject<Expression> {
+  inline fun binaryOp(ops: Array<CodeToken>, next: () -> GriddedObject<Expression>): GriddedObject<Expression> {
     val nextExpr = next()
     scanner.startSection()
     val operations = listOfUntilNull {
@@ -335,16 +336,6 @@ class Parser(val scanner: TokenScanner) {
     scanner.endSection()
     return GriddedObject.of(tk.startCoords(), Expression.Path(listOf(tk) + others), (others.lastOrNull() ?: tk).endCoords())
   }
-}
-
-private fun <T> listOfUntilNull(generator: () -> T?): List<T> {
-  var temp: T? = generator()
-  val list = mutableListOf<T>()
-  while (temp != null) {
-    list.add(temp)
-    temp = generator()
-  }
-  return list.toList()
 }
 
 private fun expectCodeToken(scanner: TokenScanner, codeToken: CodeToken, message: String? = null) {
