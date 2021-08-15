@@ -239,8 +239,8 @@ class Parser(val scanner: TokenScanner) {
     return expr
   }
 
-  fun expression(): GriddedObject<Expression>? = assignment()
-  fun assignment(): GriddedObject<Expression>? {
+  fun expression(): GriddedObject<Expression> = assignment()
+  fun assignment(): GriddedObject<Expression> {
     val call = call() ?: return if_expr()
     val tk = scanner.consumeMatchingCodeTokens(
       arrayOf(
@@ -253,12 +253,12 @@ class Parser(val scanner: TokenScanner) {
     ) ?: return if_expr()
     return GriddedObject.of(
       call.startCoords(),
-      Expression.Assignment(call, tk, assignment() ?: throw ParserException("No value to assign provided.")),
+      Expression.Assignment(call, tk, assignment()),
       scanner.positionPreviousCoords().endCoords()
     )
   }
 
-  fun if_expr(): GriddedObject<Expression>? {
+  fun if_expr(): GriddedObject<Expression> {
     scanner.startSection()
     val ifTk = scanner.consumeMatchingKeywordToken(Keyword.IF)
     if (ifTk == null) {
@@ -266,7 +266,7 @@ class Parser(val scanner: TokenScanner) {
       return logic_or()
     }
     expectCodeToken(scanner, CodeToken.LEFT_PAREN, "if_expr, open paren")
-    val condition = expression() ?: throw ParserException("condition not provided.")
+    val condition = expression()
     expectCodeToken(scanner, CodeToken.RIGHT_PAREN, "if_expr, close paren")
     val thenStatement = statement() ?: throw ParserException("then at if not provided.")
     expectKeywordToken(scanner, Keyword.ELSE, "if_expr, else expr")
@@ -279,16 +279,16 @@ class Parser(val scanner: TokenScanner) {
     )
   }
 
-  fun logic_or(): GriddedObject<Expression>? = null
-  fun logic_and(): GriddedObject<Expression>? = null
-  fun equality(): GriddedObject<Expression>? = null
-  fun comparison(): GriddedObject<Expression>? = null
-  fun term(): GriddedObject<Expression>? = null
-  fun factor(): GriddedObject<Expression>? = null
-  fun bit_op(): GriddedObject<Expression>? = null
-  fun unary_left(): GriddedObject<Expression>? = null
-  fun call(): GriddedObject<Expression>? = null
-  fun primary(): GriddedObject<Expression>? = null
+  fun logic_or(): GriddedObject<Expression> = throw NotImplementedError("logic_or")
+  fun logic_and(): GriddedObject<Expression> = throw NotImplementedError("logic_and")
+  fun equality(): GriddedObject<Expression> = throw NotImplementedError("equality")
+  fun comparison(): GriddedObject<Expression> = throw NotImplementedError("comparison")
+  fun term(): GriddedObject<Expression> = throw NotImplementedError("term")
+  fun factor(): GriddedObject<Expression> = throw NotImplementedError("factor")
+  fun bit_op(): GriddedObject<Expression> = throw NotImplementedError("bit_op")
+  fun unary_left(): GriddedObject<Expression> = throw NotImplementedError("unary_left")
+  fun call(): GriddedObject<Expression> = throw NotImplementedError("call")
+  fun primary(): GriddedObject<Expression> = throw NotImplementedError("primary")
 
   fun arguments(): GriddedObject<Expression>? = null
   fun block(): GriddedObject<Expression.Block>? = null
