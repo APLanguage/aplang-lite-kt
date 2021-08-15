@@ -299,8 +299,8 @@ enum class Keyword {
 }
 
 enum class ValueKeyword {
-  TRUE,
-  FALSE
+  TRUE, FALSE,
+  NULL
 }
 
 val LONGEST_TOKEN_LENGTH: Int = arrayOf(
