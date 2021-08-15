@@ -262,13 +262,13 @@ class Parser(val scanner: TokenScanner) {
     expectCodeToken(scanner, CodeToken.LEFT_PAREN, "if_expr, open paren")
     val condition = expression()
     expectCodeToken(scanner, CodeToken.RIGHT_PAREN, "if_expr, close paren")
-    val thenStatement = statement()
+    val thenExpr = expression()
     expectKeywordToken(scanner, Keyword.ELSE, "if_expr, else expr")
-    val elseStatement = statement()
+    val elseExpr = expression()
     scanner.endSection()
     return GriddedObject.of(
       ifTk.startCoords(),
-      Expression.IfExpression(condition, thenStatement, elseStatement),
+      Expression.IfExpression(condition, thenExpr, elseExpr),
       scanner.positionPreviousCoords().endCoords()
     )
   }
