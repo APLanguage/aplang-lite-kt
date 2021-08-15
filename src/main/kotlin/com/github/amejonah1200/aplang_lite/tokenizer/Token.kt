@@ -5,19 +5,25 @@ import java.math.BigInteger
 sealed class Token {
   data class KeywordToken(val keyword: Keyword) : Token()
 
-  data class ValueKeywordToken(val keyword: ValueKeyword) : Token()
-
   data class SignToken(val codeToken: CodeToken) : Token()
 
-  data class StringToken(val string: String) : Token()
-
-  data class CharToken(val char: String) : Token()
-
-  data class IntegerToken(val int: BigInteger) : Token()
-
-  data class FloatToken(val first: BigInteger, val second: BigInteger) : Token()
-
   data class IdentifierToken(val identifier: String) : Token()
+
+  sealed class ValueToken : Token() {
+
+    data class ValueKeywordToken(val keyword: ValueKeyword) : ValueToken()
+
+    sealed class LiteralToken : ValueToken() {
+
+      data class StringToken(val string: String) : LiteralToken()
+
+      data class CharToken(val char: String) : LiteralToken()
+
+      data class IntegerToken(val int: BigInteger) : LiteralToken()
+
+      data class FloatToken(val first: BigInteger, val second: BigInteger) : LiteralToken()
+    }
+  }
 }
 
 enum class CodeToken(val stringRepresentation: String) {
@@ -325,7 +331,7 @@ fun parseToken(string: String): Pair<Token, Int>? {
       val length = keyword.name.length
       when (keyword) {
         is Keyword -> Token.KeywordToken(keyword)
-        is ValueKeyword -> Token.ValueKeywordToken(keyword)
+        is ValueKeyword -> Token.ValueToken.ValueKeywordToken(keyword)
         else -> throw IllegalStateException("should never happen")
       }.let { Pair(it, length) }
     }

@@ -43,29 +43,29 @@ fun scan(scanner: CharScanner): ScanResult {
         }
         if (nb.isEmpty()) {
           scanner.rewindPosition(1)
-          Token.IntegerToken(BigInteger.ZERO)
+          Token.ValueToken.LiteralToken.IntegerToken(BigInteger.ZERO)
         } else {
-          Token.IntegerToken(BigInteger(nb, 16))
+          Token.ValueToken.LiteralToken.IntegerToken(BigInteger(nb, 16))
         }
       } else if (scanner.peekSearch("0b")) {
         scanner.advancePosition(2)
         val nb = scanner.searchConsumeChars(Char::isDigit)
         if (nb.isEmpty()) {
           scanner.rewindPosition(1)
-          Token.IntegerToken(BigInteger.ZERO)
+          Token.ValueToken.LiteralToken.IntegerToken(BigInteger.ZERO)
         } else {
           val bi = nb.toBigIntegerOrNull(2)
           if (bi == null) {
             errors.add(OneLineObject(posX, posY, ScanErrorType.NUMBER_FORMAT, scanner.position - startPos))
-            Token.IntegerToken(BigInteger(nb))
-          } else Token.IntegerToken(bi)
+            Token.ValueToken.LiteralToken.IntegerToken(BigInteger(nb))
+          } else Token.ValueToken.LiteralToken.IntegerToken(bi)
         }
       } else {
         val nb = scanner.searchConsumeChars(Char::isDigit)
         if (scanner.peekSearchChar('.') && scanner.peekSearchWithPredicate(Char::isDigit)) {
           scanner.advancePosition(1)
-          Token.FloatToken(BigInteger(nb), BigInteger(scanner.searchConsumeChars(Char::isDigit)))
-        } else Token.IntegerToken(BigInteger(nb))
+          Token.ValueToken.LiteralToken.FloatToken(BigInteger(nb), BigInteger(scanner.searchConsumeChars(Char::isDigit)))
+        } else Token.ValueToken.LiteralToken.IntegerToken(BigInteger(nb))
       }
       tokens.add(OneLineObject(posX, posY, tk, scanner.position - startPos))
       posX += scanner.position - startPos
@@ -76,7 +76,7 @@ fun scan(scanner: CharScanner): ScanResult {
         val match = Regex("\".*?\"(?<!\\\\\")").find(scanner.str, scanner.position)
           ?: throw ParserException("No closing quoting mark for string at $posY:$posX")
         scanner.advancePosition(match.value.length)
-        tokens.add(OneLineObject(posX, posY, Token.StringToken(match.value.substring(1, match.value.length - 1)), scanner.position - startPos))
+        tokens.add(OneLineObject(posX, posY, Token.ValueToken.LiteralToken.StringToken(match.value.substring(1, match.value.length - 1)), scanner.position - startPos))
         posX += scanner.position - startPos
       }
       '\'' -> {
@@ -84,7 +84,7 @@ fun scan(scanner: CharScanner): ScanResult {
           ?: throw ParserException("No closing apostrophe mark for char at $posY:$posX")
         if (match.range.first != scanner.position) throw ParserException("No closing apostrophe mark for string at $posY:$posX")
         scanner.advancePosition(match.value.length)
-        tokens.add(OneLineObject(posX, posY, Token.CharToken(match.value.substring(1, match.value.length - 1)), scanner.position - startPos))
+        tokens.add(OneLineObject(posX, posY, Token.ValueToken.LiteralToken.CharToken(match.value.substring(1, match.value.length - 1)), scanner.position - startPos))
         posX += scanner.position - startPos
       }
       else -> {
