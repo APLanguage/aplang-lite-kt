@@ -132,7 +132,7 @@ class Parser(val scanner: TokenScanner) {
     return GriddedObject.of(useTk.startCoords(), Expression.UseDeclaration(path, star != null, asOther), path.obj.identifiers.last().endCoords())
   }
 
-  fun statement(): GriddedObject<Expression>? =
+  fun statement(): GriddedObject<Expression> =
     for_stmt() ?: return_stmt() ?: break_stmt() ?: while_stmt() ?: var_decl() ?: if_stmt() ?: block() ?: exp_stmt()
 
   fun for_stmt(): GriddedObject<Expression>? {
@@ -145,9 +145,9 @@ class Parser(val scanner: TokenScanner) {
     expectCodeToken(scanner, CodeToken.LEFT_PAREN, "for_stmt, open paren")
     val identifier = expectIdentifier(scanner, "for_stmt, After (")
     expectCodeToken(scanner, CodeToken.COLON, "for_stmt, separator")
-    val expr = expression() ?: throw ParserException("No expression to iterate through provided.")
+    val expr = expression()
     expectCodeToken(scanner, CodeToken.RIGHT_PAREN, "for_stmt, close paren")
-    val statement = statement() ?: throw ParserException("No statement for the fo stmt provided!")
+    val statement = statement()
     scanner.endSection()
     return GriddedObject.of(forTk.startCoords(), Expression.ForStatement(identifier, expr, statement), statement.endCoords())
   }
@@ -162,7 +162,7 @@ class Parser(val scanner: TokenScanner) {
     var expr: GriddedObject<Expression>? = null
     if (!scanner.isPositionEOF() && returnTk.endCoords().y == scanner.positionCoords().startCoords().y) {
       expr = expression()
-      if (expr == null || (!scanner.isPositionEOF() && returnTk.endCoords().y == scanner.positionCoords().startCoords().y)) {
+      if (!scanner.isPositionEOF() && returnTk.endCoords().y == scanner.positionCoords().startCoords().y) {
         throw ParserException("After a return statement there must be an new-line.")
       }
     }
@@ -192,7 +192,7 @@ class Parser(val scanner: TokenScanner) {
       return null
     }
     expectCodeToken(scanner, CodeToken.LEFT_PAREN, "while_stmt, open paren")
-    val expr = expression() ?: throw ParserException("No expression to have as condition for while loop provided.")
+    val expr = expression()
     expectCodeToken(scanner, CodeToken.RIGHT_PAREN, "while_stmt, close paren")
     var statement: GriddedObject<Expression>? = null
     if (!scanner.isPositionEOF() && whileTk.endCoords().y == scanner.positionCoords().startCoords().y) {
@@ -210,13 +210,12 @@ class Parser(val scanner: TokenScanner) {
       return null
     }
     expectCodeToken(scanner, CodeToken.LEFT_PAREN, "if_stmt, open paren")
-    val condition = expression() ?: throw ParserException("condition not provided.")
+    val condition = expression()
     expectCodeToken(scanner, CodeToken.RIGHT_PAREN, "if_stmt, close paren")
-    val thenStatement = statement() ?: throw ParserException("then at if not provided.")
-
+    val thenStatement = statement()
     var elseStatement: GriddedObject<Expression>? = null
     if (scanner.consumeMatchingKeywordToken(Keyword.ELSE) != null) {
-      elseStatement = statement() ?: throw ParserException("No statement after else provided.")
+      elseStatement = statement()
     }
     scanner.endSection()
     return GriddedObject.of(
@@ -226,8 +225,8 @@ class Parser(val scanner: TokenScanner) {
     )
   }
 
-  fun exp_stmt(): GriddedObject<Expression>? {
-    val expr = expression() ?: return null
+  fun exp_stmt(): GriddedObject<Expression> {
+    val expr = expression()
     if (!scanner.isPositionEOF() && scanner.positionPreviousCoords().endCoords().y == scanner.positionCoords().startCoords().y) {
       throw ParserException("After an expr there must be a new-line.")
     }
@@ -236,7 +235,7 @@ class Parser(val scanner: TokenScanner) {
 
   fun expression(): GriddedObject<Expression> = assignment()
   fun assignment(): GriddedObject<Expression> {
-    val call = call() ?: return if_expr()
+    val call = call()
     val tk = scanner.consumeMatchingCodeTokens(
       arrayOf(
         CodeToken.PLUS_EQUAL, CodeToken.MINUS_EQUAL, CodeToken.STAR_EQUAL, CodeToken.STAR_STAR_EQUAL, CodeToken.SLASH_EQUAL,
@@ -263,9 +262,9 @@ class Parser(val scanner: TokenScanner) {
     expectCodeToken(scanner, CodeToken.LEFT_PAREN, "if_expr, open paren")
     val condition = expression()
     expectCodeToken(scanner, CodeToken.RIGHT_PAREN, "if_expr, close paren")
-    val thenStatement = statement() ?: throw ParserException("then at if not provided.")
+    val thenStatement = statement()
     expectKeywordToken(scanner, Keyword.ELSE, "if_expr, else expr")
-    val elseStatement = statement() ?: throw ParserException("No statement after else provided.")
+    val elseStatement = statement()
     scanner.endSection()
     return GriddedObject.of(
       ifTk.startCoords(),
