@@ -310,10 +310,39 @@ class Parser(val scanner: TokenScanner) {
     return GriddedObject.of(tk.startCoords(), Expression.UnaryOperation(tk, unary_left()), scanner.positionPreviousCoords().endCoords())
   }
 
-  fun call(): GriddedObject<Expression> = throw NotImplementedError("call")
-  fun primary(): GriddedObject<Expression> = throw NotImplementedError("primary")
+  fun call(): GriddedObject<Expression> {
+    val primary = primary()
+    val invocation = invocation()
+    val calls = listOfUntilNull {
+      scanner.consumeMatchingCodeToken(CodeToken.DOT) ?: return@listOfUntilNull null
+      Pair(
+        GriddedObject.of(
+          scanner.positionPreviousCoords().startCoords(),
+          expectIdentifier(scanner, "call, After Dot"),
+          scanner.positionPreviousCoords().endCoords()
+        ), invocation()
+      )
+    }
+    return GriddedObject.of(primary.startCoords(), Expression.Call(primary, invocation, calls), scanner.positionPreviousCoords().endCoords())
+  }
 
-  fun arguments(): GriddedObject<Expression>? = throw NotImplementedError("arguments")
+  fun invocation(): GriddedObject<Expression.Invocation>? {
+    val tk = scanner.consumeMatchingCodeTokens(arrayOf(CodeToken.LEFT_PAREN, CodeToken.LEFT_BRACKET)) ?: return null
+    return GriddedObject.of(tk.startCoords(), when (tk.obj.codeToken) {
+      CodeToken.LEFT_PAREN -> Expression.Invocation.FunctionCall(
+        if (scanner.consumeMatchingCodeToken(CodeToken.RIGHT_PAREN) == null) {
+          listOf(expression()) + listOfUntilNull {
+            scanner.consumeMatchingCodeToken(CodeToken.COMMA)?.let { return@listOfUntilNull expression() }
+          }
+        } else listOf()
+      )
+      CodeToken.LEFT_BRACKET -> Expression.Invocation.ArrayCall(expression())
+        .also { expectCodeToken(scanner, CodeToken.RIGHT_BRACKET, "invocation, closing bracket") }
+      else -> throw IllegalStateException("should never happen")
+    }, scanner.positionPreviousCoords().endCoords())
+  }
+
+  fun primary(): GriddedObject<Expression> = throw NotImplementedError("primary")
   fun block(): GriddedObject<Expression.Block>? = throw NotImplementedError("block")
 
   fun type(): GriddedObject<Expression.Type>? = path()?.let { it.repack(Expression.Type(it.obj)) }

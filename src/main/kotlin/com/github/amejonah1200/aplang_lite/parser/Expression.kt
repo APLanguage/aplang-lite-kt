@@ -81,4 +81,16 @@ sealed class Expression {
     val operation: GriddedObject<Token.SignToken>,
     val expr: GriddedObject<Expression>
   ) : Expression()
+
+  data class Call(
+    val primary: GriddedObject<Expression>,
+    val invocation: GriddedObject<Invocation>?,
+    val calls: List<Pair<GriddedObject<GriddedObject<Token.IdentifierToken>>, GriddedObject<Invocation>?>>
+  ) : Expression()
+
+  sealed class Invocation {
+    data class FunctionCall(val arguments: List<GriddedObject<Expression>>) : Invocation()
+    data class ArrayCall(val expr: GriddedObject<Expression>) : Invocation()
+  }
+
 }
