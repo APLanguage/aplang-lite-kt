@@ -310,12 +310,16 @@ class Parser(val scanner: TokenScanner) {
     ), this::unary_left
   )
 
-  fun unary_left(): GriddedObject<Expression> = throw NotImplementedError("unary_left")
+  fun unary_left(): GriddedObject<Expression> {
+    val tk = scanner.consumeMatchingCodeTokens(arrayOf(CodeToken.BANG, CodeToken.TILDE)) ?: return call()
+    return GriddedObject.of(tk.startCoords(), Expression.UnaryOperation(tk, unary_left()), scanner.positionPreviousCoords().endCoords())
+  }
+
   fun call(): GriddedObject<Expression> = throw NotImplementedError("call")
   fun primary(): GriddedObject<Expression> = throw NotImplementedError("primary")
 
-  fun arguments(): GriddedObject<Expression>? = null
-  fun block(): GriddedObject<Expression.Block>? = null
+  fun arguments(): GriddedObject<Expression>? = throw NotImplementedError("arguments")
+  fun block(): GriddedObject<Expression.Block>? = throw NotImplementedError("block")
 
   fun type(): GriddedObject<Expression.Type>? = path()?.let { it.repack(Expression.Type(it.obj)) }
 
