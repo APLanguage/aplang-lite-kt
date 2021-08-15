@@ -258,7 +258,27 @@ class Parser(val scanner: TokenScanner) {
     )
   }
 
-  fun if_expr(): GriddedObject<Expression>? = null
+  fun if_expr(): GriddedObject<Expression>? {
+    scanner.startSection()
+    val ifTk = scanner.consumeMatchingKeywordToken(Keyword.IF)
+    if (ifTk == null) {
+      scanner.endSection(true)
+      return logic_or()
+    }
+    expectCodeToken(scanner, CodeToken.LEFT_PAREN, "if_expr, open paren")
+    val condition = expression() ?: throw ParserException("condition not provided.")
+    expectCodeToken(scanner, CodeToken.RIGHT_PAREN, "if_expr, close paren")
+    val thenStatement = statement() ?: throw ParserException("then at if not provided.")
+    expectKeywordToken(scanner, Keyword.ELSE, "if_expr, else expr")
+    val elseStatement = statement() ?: throw ParserException("No statement after else provided.")
+    scanner.endSection()
+    return GriddedObject.of(
+      ifTk.startCoords(),
+      Expression.IfExpression(condition, thenStatement, elseStatement),
+      scanner.positionPreviousCoords().endCoords()
+    )
+  }
+
   fun logic_or(): GriddedObject<Expression>? = null
   fun logic_and(): GriddedObject<Expression>? = null
   fun equality(): GriddedObject<Expression>? = null
@@ -317,5 +337,20 @@ private fun expectCodeToken(scanner: TokenScanner, codeToken: CodeToken, message
     (if (message == null) "" else "$message. ") + "Expected $codeToken at ${
       scanner.positionCoords().startCoords()
     }, got ${tk.obj.codeToken}"
+  )
+}
+
+private fun expectKeywordToken(scanner: TokenScanner, keyword: Keyword, message: String? = null) {
+  val tk = scanner.consumeMatchingInnerClass(Token.KeywordToken::class.java)
+    ?: throw ParserException(
+      (if (message == null) "" else "$message. ") + "Expected Token.KeywordToken at ${
+        scanner.positionCoords().startCoords()
+      }, got " + (scanner.consume()?.obj ?: "EOF")
+    )
+
+  if (tk.obj.keyword != keyword) throw ParserException(
+    (if (message == null) "" else "$message. ") + "Expected $keyword at ${
+      scanner.positionCoords().startCoords()
+    }, got ${tk.obj.keyword}"
   )
 }

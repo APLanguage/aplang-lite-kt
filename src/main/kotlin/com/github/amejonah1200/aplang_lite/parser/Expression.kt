@@ -65,4 +65,10 @@ sealed class Expression {
     val op: GriddedObject<Token.SignToken>,
     val expr: GriddedObject<Expression>
   ) : Expression()
+
+  data class IfExpression(
+    val condition: GriddedObject<Expression>,
+    val thenExpr: GriddedObject<Expression>,
+    val elseExpr: GriddedObject<Expression>
+  ) : Expression()
 }
