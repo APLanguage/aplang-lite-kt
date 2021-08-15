@@ -8,17 +8,18 @@ group = "com.github.amejonah1200"
 version = "1.0-SNAPSHOT"
 
 repositories {
-    mavenCentral()
+  mavenCentral()
 }
 
 dependencies {
-    testImplementation(kotlin("test"))
+  implementation("com.google.code.gson:gson:2.8.7")
+  testImplementation(kotlin("test"))
 }
 
 tasks.test {
-    useJUnitPlatform()
+  useJUnitPlatform()
 }
 
 tasks.withType<KotlinCompile>() {
-    kotlinOptions.jvmTarget = "11"
+  kotlinOptions.jvmTarget = "11"
 }

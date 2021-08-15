@@ -34,7 +34,7 @@ sealed class GriddedObject<out T>(open val obj: T) {
 
 }
 
-class OneLineObject<T>(val start: Point, override val obj: T, val length: Int) : GriddedObject<T>(obj) {
+class OneLineObject<T>(val start: Point, obj: T, val length: Int) : GriddedObject<T>(obj) {
 
   constructor(x: Int, y: Int, obj: T, length: Int) : this(Point(x, y), obj, length)
 
@@ -62,7 +62,7 @@ class OneLineObject<T>(val start: Point, override val obj: T, val length: Int) :
   }
 }
 
-class MultiLineObject<T>(val start: Point, override val obj: T, val end: Point) : GriddedObject<T>(obj) {
+class MultiLineObject<T>(val start: Point, obj: T, val end: Point) : GriddedObject<T>(obj) {
 
   constructor(startX: Int, startY: Int, obj: T, endX: Int, endY: Int) : this(Point(startX, startY), obj, Point(endX, endY))
 
@@ -117,6 +117,8 @@ data class OneLineArea(val start: Point, val length: Int) : Area() {
   override fun endCoords() = Point(start.x + length, start.y)
 
   override fun <T> toObject(obj: T) = OneLineObject(start, obj, length)
+
+  override fun toString() = "${start.x} + $length:${start.y}"
 }
 
 data class MultiLineArea(val start: Point, val end: Point) : Area() {
@@ -132,4 +134,6 @@ data class MultiLineArea(val start: Point, val end: Point) : Area() {
   override fun startCoords() = start
 
   override fun endCoords() = end
+
+  override fun toString() = "${start.x}:${start.y} -> ${end.x}:${end.y}"
 }
