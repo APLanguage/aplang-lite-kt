@@ -71,4 +71,9 @@ sealed class Expression {
     val thenExpr: GriddedObject<Expression>,
     val elseExpr: GriddedObject<Expression>
   ) : Expression()
+
+  data class BinaryOperation(
+    val first: GriddedObject<Expression>,
+    val ors: List<Pair<GriddedObject<Token.SignToken>, GriddedObject<Expression>>>
+  ) : Expression()
 }

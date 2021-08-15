@@ -279,13 +279,37 @@ class Parser(val scanner: TokenScanner) {
     )
   }
 
-  fun logic_or(): GriddedObject<Expression> = throw NotImplementedError("logic_or")
-  fun logic_and(): GriddedObject<Expression> = throw NotImplementedError("logic_and")
-  fun equality(): GriddedObject<Expression> = throw NotImplementedError("equality")
-  fun comparison(): GriddedObject<Expression> = throw NotImplementedError("comparison")
-  fun term(): GriddedObject<Expression> = throw NotImplementedError("term")
-  fun factor(): GriddedObject<Expression> = throw NotImplementedError("factor")
-  fun bit_op(): GriddedObject<Expression> = throw NotImplementedError("bit_op")
+  fun binaryOp(ops: Array<CodeToken>, next: () -> GriddedObject<Expression>): GriddedObject<Expression> {
+    val nextExpr = next()
+    scanner.startSection()
+    val operations = listOfUntilNull {
+      Pair(scanner.consumeMatchingCodeTokens(ops) ?: return@listOfUntilNull null, next())
+    }
+    return if (operations.isEmpty()) nextExpr
+    else GriddedObject.of(
+      nextExpr.startCoords(),
+      Expression.BinaryOperation(nextExpr, operations),
+      scanner.positionPreviousCoords().endCoords()
+    )
+  }
+
+  fun logic_or() = binaryOp(arrayOf(CodeToken.DOUBLE_VERTICAL_BAR), this::logic_and)
+  fun logic_and() = binaryOp(arrayOf(CodeToken.AMPERSAND_AMPERSAND), this::equality)
+  fun equality() = binaryOp(arrayOf(CodeToken.BANG_EQUAL, CodeToken.EQUAL_EQUAL), this::comparison)
+  fun comparison() = binaryOp(arrayOf(CodeToken.GREATER, CodeToken.GREATER_EQUAL, CodeToken.LESS, CodeToken.LESS_EQUAL), this::term)
+  fun term() = binaryOp(arrayOf(CodeToken.PLUS, CodeToken.MINUS), this::factor)
+  fun factor() = binaryOp(arrayOf(CodeToken.SLASH, CodeToken.STAR, CodeToken.STAR_STAR, CodeToken.PERCENTAGE), this::bit_op)
+  fun bit_op() = binaryOp(
+    arrayOf(
+      CodeToken.VERTICAL_BAR,
+      CodeToken.CIRCUMFLEX,
+      CodeToken.AMPERSAND,
+      CodeToken.GREATER_GREATER,
+      CodeToken.LESS_LESS,
+      CodeToken.GREATER_GREATER_GREATER
+    ), this::unary_left
+  )
+
   fun unary_left(): GriddedObject<Expression> = throw NotImplementedError("unary_left")
   fun call(): GriddedObject<Expression> = throw NotImplementedError("call")
   fun primary(): GriddedObject<Expression> = throw NotImplementedError("primary")
