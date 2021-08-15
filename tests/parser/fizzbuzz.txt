@@ -1,0 +1,11 @@
+use println
+use range
+
+fn main() {
+  for(i : range(0, 100)) {
+    if(i % 3 && i % 5) println("FizzBuzz")
+    else if(i % 3) println("Fizz")
+    else if(i % 5) println("Buzz")
+    else println(i)
+  }
+}
