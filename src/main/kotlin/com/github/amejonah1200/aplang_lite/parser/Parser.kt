@@ -341,8 +341,15 @@ class Parser(val scanner: TokenScanner) {
     }, scanner.positionPreviousCoords().endCoords())
   }
 
-  fun primary(): GriddedObject<Expression> = throw NotImplementedError("primary")
-  
+  fun primary(): GriddedObject<Expression.Primary> {
+    val tk = scanner.consume() ?: throw ParserException("No EOF expected!")
+    return when (tk.obj) {
+      is Token.IdentifierToken -> tk.repack(Expression.Primary.IdentifierExpression(tk.obj as Token.IdentifierToken))
+      is Token.ValueToken -> tk.repack(Expression.Primary.DirectValue(tk.obj as Token.ValueToken))
+      else -> throw ParserException("Unexpected Token: $tk")
+    }
+  }
+
   fun block(): GriddedObject<Expression.Block>? {
     scanner.startSection()
     val openBrace = scanner.consumeMatchingCodeToken(CodeToken.LEFT_BRACE) ?: return null

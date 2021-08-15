@@ -93,4 +93,8 @@ sealed class Expression {
     data class ArrayCall(val expr: GriddedObject<Expression>) : Invocation()
   }
 
+  sealed class Primary : Expression() {
+    data class DirectValue(val value: Token.ValueToken) : Primary()
+    data class IdentifierExpression(val identifier: Token.IdentifierToken) : Primary()
+  }
 }
