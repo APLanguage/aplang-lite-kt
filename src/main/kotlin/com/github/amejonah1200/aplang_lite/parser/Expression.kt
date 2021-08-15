@@ -52,6 +52,12 @@ sealed class Expression {
 
   data class WhileStatement(val expr: GriddedObject<Expression>, val statement: GriddedObject<Expression>?) : Expression()
 
+  data class IfStatement(
+    val condition: GriddedObject<Expression>,
+    val thenStmt: GriddedObject<Expression>,
+    val elseStmt: GriddedObject<Expression>?
+  ) : Expression()
+
   data class Block(val statements: List<GriddedObject<Expression>>) : Expression()
 
   data class Assignment(

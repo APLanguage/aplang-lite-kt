@@ -136,7 +136,8 @@ class Parser(val scanner: TokenScanner) {
     return GriddedObject.of(useTk.startCoords(), Expression.UseDeclaration(path, star != null, asOther), path.obj.identifiers.last().endCoords())
   }
 
-  fun statement(): GriddedObject<Expression>? = for_stmt() ?: return_stmt() ?: break_stmt() ?: while_stmt() ?: var_decl() ?: block() ?: exp_stmt()
+  fun statement(): GriddedObject<Expression>? =
+    for_stmt() ?: return_stmt() ?: break_stmt() ?: while_stmt() ?: var_decl() ?: if_stmt() ?: block() ?: exp_stmt()
 
   fun for_stmt(): GriddedObject<Expression>? {
     scanner.startSection()
@@ -206,6 +207,30 @@ class Parser(val scanner: TokenScanner) {
     return GriddedObject.of(whileTk.startCoords(), Expression.WhileStatement(expr, statement), scanner.positionCoords().endCoords())
   }
 
+  fun if_stmt(): GriddedObject<Expression>? {
+    scanner.startSection()
+    val ifTk = scanner.consumeMatchingKeywordToken(Keyword.IF)
+    if (ifTk == null) {
+      scanner.endSection(true)
+      return null
+    }
+    expectCodeToken(scanner, CodeToken.LEFT_PAREN, "if_stmt, open paren")
+    val condition = expression() ?: throw ParserException("condition not provided.")
+    expectCodeToken(scanner, CodeToken.RIGHT_PAREN, "if_stmt, close paren")
+    val thenStatement = statement() ?: throw ParserException("then at if not provided.")
+
+    var elseStatement: GriddedObject<Expression>? = null
+    if (scanner.consumeMatchingKeywordToken(Keyword.ELSE) != null) {
+      elseStatement = statement() ?: throw ParserException("No statement after else provided.")
+    }
+    scanner.endSection()
+    return GriddedObject.of(
+      ifTk.startCoords(),
+      Expression.IfStatement(condition, thenStatement, elseStatement),
+      scanner.positionPreviousCoords().endCoords()
+    )
+  }
+
   fun exp_stmt(): GriddedObject<Expression>? {
     val expr = expression() ?: return null
     if (!scanner.isPositionEOF() && scanner.positionPreviousCoords().endCoords().y == scanner.positionCoords().startCoords().y) {
@@ -268,9 +293,6 @@ class Parser(val scanner: TokenScanner) {
     scanner.endSection()
     return GriddedObject.of(tk.startCoords(), Expression.Path(listOf(tk) + others), (others.lastOrNull() ?: tk).endCoords())
   }
-
-  fun array_clause(): GriddedObject<Expression>? = null
-
 }
 
 private fun <T> listOfUntilNull(generator: () -> T?): List<T> {
