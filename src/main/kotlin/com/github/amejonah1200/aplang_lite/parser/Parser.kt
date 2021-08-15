@@ -36,14 +36,14 @@ class Parser(val scanner: TokenScanner) {
       scanner.consumeMatchingInnerClass(Token.IdentifierToken::class.java)
         ?: throw ParserException("After class, there should be an identifier.") // TODO better exceptions
     val superTypes = mutableListOf<GriddedObject<Expression.Type>>()
-    if (scanner.peekMatchingCodeToken(CodeToken.COLON) != null) {
+    if (scanner.consumeMatchingCodeToken(CodeToken.COLON) != null) {
       superTypes.add(type() ?: throw ParserException("After : a Type expected."))
       while (scanner.consumeMatchingCodeToken(CodeToken.COMMA) != null) {
         superTypes.add(type() ?: throw ParserException("After , a Type expected."))
       }
     }
     var program: GriddedObject<Expression.Program>? = null
-    if (scanner.peekMatchingCodeToken(CodeToken.LEFT_BRACE) != null) {
+    if (scanner.consumeMatchingCodeToken(CodeToken.LEFT_BRACE) != null) {
       program = program()
       expectCodeToken(scanner, CodeToken.RIGHT_BRACE, "class_decl, close brace")
     } else if (!scanner.isPositionEOF() && scanner.positionPreviousCoords().endCoords().y == scanner.positionCoords().startCoords().y) {
@@ -311,13 +311,15 @@ class Parser(val scanner: TokenScanner) {
   )
 
   fun unary_left(): GriddedObject<Expression> {
-    val tk = scanner.consumeMatchingCodeTokens(arrayOf(CodeToken.BANG, CodeToken.TILDE)) ?: return call()
+    scanner.startSection()
+    val tk = scanner.consumeMatchingCodeTokens(arrayOf(CodeToken.BANG, CodeToken.TILDE)) ?: return call().also { scanner.endSection() }
     return GriddedObject.of(tk.startCoords(), Expression.UnaryOperation(tk, unary_left()), scanner.positionPreviousCoords().endCoords())
+      .also { scanner.endSection() }
   }
 
   fun call(): GriddedObject<Expression> {
     val primary = primary()
-    val invocation = invocation()
+    val invocations = listOfUntilNull(this::invocation)
     val calls = listOfUntilNull {
       scanner.consumeMatchingCodeToken(CodeToken.DOT) ?: return@listOfUntilNull null
       Pair(
@@ -325,11 +327,11 @@ class Parser(val scanner: TokenScanner) {
           scanner.positionPreviousCoords().startCoords(),
           expectIdentifier(scanner, "call, After Dot"),
           scanner.positionPreviousCoords().endCoords()
-        ), invocation()
+        ), listOfUntilNull(this::invocation)
       )
     }
-    if (invocation == null && calls.isEmpty()) return primary
-    return GriddedObject.of(primary.startCoords(), Expression.Call(primary, invocation, calls), scanner.positionPreviousCoords().endCoords())
+    if (invocations.isEmpty() && calls.isEmpty()) return primary
+    return GriddedObject.of(primary.startCoords(), Expression.Call(primary, invocations, calls), scanner.positionPreviousCoords().endCoords())
   }
 
   fun invocation(): GriddedObject<Expression.Invocation>? {
@@ -354,9 +356,9 @@ class Parser(val scanner: TokenScanner) {
       is Token.IdentifierToken -> tk.repack(Expression.Primary.IdentifierExpression(tk.obj as Token.IdentifierToken))
       is Token.ValueToken -> tk.repack(Expression.Primary.DirectValue(tk.obj as Token.ValueToken))
       is Token.SignToken -> {
-        if((tk.obj as Token.SignToken).codeToken == CodeToken.LEFT_PAREN)
+        if ((tk.obj as Token.SignToken).codeToken == CodeToken.LEFT_PAREN)
           expression().also { expectCodeToken(scanner, CodeToken.RIGHT_PAREN, "primary, (expression) close paren") }
-        else throw ParserException("Identifier, ValueToken or ( expected on ${tk.startCoords()}")
+        else throw ParserException("Identifier, ValueToken or ( expected, got $tk")
       }
       else -> throw ParserException("Unexpected Token: $tk")
     }

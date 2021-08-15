@@ -83,8 +83,8 @@ sealed class Expression {
 
   data class Call(
     val primary: GriddedObject<Expression>,
-    val invocation: GriddedObject<Invocation>?,
-    val calls: List<Pair<GriddedObject<GriddedObject<Token.IdentifierToken>>, GriddedObject<Invocation>?>>
+    val invocations: List<GriddedObject<Invocation>>,
+    val calls: List<Pair<GriddedObject<GriddedObject<Token.IdentifierToken>>, List<GriddedObject<Invocation>>>>
   ) : Expression()
 
   sealed class Invocation {
