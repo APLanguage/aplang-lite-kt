@@ -10,7 +10,7 @@ enum class ScanErrorType {
 
 data class ScanResult(val tokens: List<OneLineObject<Token>>, val liteErrors: List<OneLineObject<ScanErrorType>>)
 
-class ParserException(msg: String) : RuntimeException(msg)
+class TokenizerException(msg: String) : RuntimeException(msg)
 
 fun scan(scanner: CharScanner): ScanResult {
   scanner.reset()
@@ -74,17 +74,31 @@ fun scan(scanner: CharScanner): ScanResult {
     when (buffer[0]) {
       '"' -> {
         val match = Regex("\".*?\"(?<!\\\\\")").find(scanner.str, scanner.position)
-          ?: throw ParserException("No closing quoting mark for string at $posY:$posX")
+          ?: throw TokenizerException("No closing quoting mark for string at $posY:$posX")
         scanner.advancePosition(match.value.length)
-        tokens.add(OneLineObject(posX, posY, Token.ValueToken.LiteralToken.StringToken(match.value.substring(1, match.value.length - 1)), scanner.position - startPos))
+        tokens.add(
+          OneLineObject(
+            posX,
+            posY,
+            Token.ValueToken.LiteralToken.StringToken(match.value.substring(1, match.value.length - 1)),
+            scanner.position - startPos
+          )
+        )
         posX += scanner.position - startPos
       }
       '\'' -> {
         val match = Regex("'(?:\\\\[^\\\\]|.)'").find(scanner.str, scanner.position)
-          ?: throw ParserException("No closing apostrophe mark for char at $posY:$posX")
-        if (match.range.first != scanner.position) throw ParserException("No closing apostrophe mark for string at $posY:$posX")
+          ?: throw TokenizerException("No closing apostrophe mark for char at $posY:$posX")
+        if (match.range.first != scanner.position) throw TokenizerException("No closing apostrophe mark for string at $posY:$posX")
         scanner.advancePosition(match.value.length)
-        tokens.add(OneLineObject(posX, posY, Token.ValueToken.LiteralToken.CharToken(match.value.substring(1, match.value.length - 1)), scanner.position - startPos))
+        tokens.add(
+          OneLineObject(
+            posX,
+            posY,
+            Token.ValueToken.LiteralToken.CharToken(match.value.substring(1, match.value.length - 1)),
+            scanner.position - startPos
+          )
+        )
         posX += scanner.position - startPos
       }
       else -> {
@@ -103,7 +117,7 @@ fun scan(scanner: CharScanner): ScanResult {
         } else {
           val identifier = scanner.searchConsumeChars { it.isLetterOrDigit() || it == '_' }
           if (identifier.isEmpty()) {
-            throw ParserException("Unknown char '${buffer[0]}' at $posY:$posX")
+            throw TokenizerException("Unknown char '${buffer[0]}' at $posY:$posX")
           }
           tokens.add(OneLineObject(posX, posY, Token.IdentifierToken(identifier), scanner.position - startPos))
           posX += scanner.position - startPos

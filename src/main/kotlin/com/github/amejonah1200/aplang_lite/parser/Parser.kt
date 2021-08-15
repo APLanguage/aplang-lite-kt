@@ -2,13 +2,12 @@ package com.github.amejonah1200.aplang_lite.parser
 
 import com.github.amejonah1200.aplang_lite.tokenizer.CodeToken
 import com.github.amejonah1200.aplang_lite.tokenizer.Keyword
-import com.github.amejonah1200.aplang_lite.tokenizer.ParserException
 import com.github.amejonah1200.aplang_lite.tokenizer.Token
 import com.github.amejonah1200.aplang_lite.utils.GriddedObject
 import com.github.amejonah1200.aplang_lite.utils.TokenScanner
 import com.github.amejonah1200.aplang_lite.utils.listOfUntilNull
 
-class ParseException(msg: String) : RuntimeException(msg)
+class ParserException(msg: String) : RuntimeException(msg)
 
 class Parser(val scanner: TokenScanner) {
 
@@ -32,14 +31,12 @@ class Parser(val scanner: TokenScanner) {
       scanner.endSection(true)
       return null
     }
-    val identifier =
-      scanner.consumeMatchingInnerClass(Token.IdentifierToken::class.java)
-        ?: throw ParserException("After class, there should be an identifier.") // TODO better exceptions
+    val identifier = expectIdentifier(scanner, "After class")
     val superTypes = mutableListOf<GriddedObject<Expression.Type>>()
     if (scanner.consumeMatchingCodeToken(CodeToken.COLON) != null) {
-      superTypes.add(type() ?: throw ParserException("After : a Type expected."))
+      superTypes.add(type() ?: throw ParserException("After : a Type expected. ${scanner.positionPreviousCoords().endCoords()}"))
       while (scanner.consumeMatchingCodeToken(CodeToken.COMMA) != null) {
-        superTypes.add(type() ?: throw ParserException("After , a Type expected."))
+        superTypes.add(type() ?: throw ParserException("After , a Type expected. ${scanner.positionPreviousCoords().endCoords()}"))
       }
     }
     var program: GriddedObject<Expression.Program>? = null
@@ -47,7 +44,7 @@ class Parser(val scanner: TokenScanner) {
       program = program()
       expectCodeToken(scanner, CodeToken.RIGHT_BRACE, "class_decl, close brace")
     } else if (!scanner.isPositionEOF() && scanner.positionPreviousCoords().endCoords().y == scanner.positionCoords().startCoords().y) {
-      throw ParserException("After an class statement (with no braces) there must be an new-line.")
+      throw ParserException("After an class statement (with no braces) there must be an new-line. ${scanner.positionPreviousCoords().endCoords()}")
     }
     return GriddedObject.of(
       classTk.startCoords(),
@@ -70,11 +67,13 @@ class Parser(val scanner: TokenScanner) {
       scanner.startSection()
       val parameterIdentifier = expectIdentifier(scanner, "fun_decl, After ( no )")
       expectCodeToken(scanner, CodeToken.COLON, "fun_decl, parameter colon")
-      parameters[parameterIdentifier] = type() ?: throw ParserException("Each parameter must have a type.")
+      parameters[parameterIdentifier] =
+        type() ?: throw ParserException("Each parameter must have a type. ${scanner.positionPreviousCoords().endCoords()}")
       while (scanner.consumeMatchingCodeToken(CodeToken.COMMA) != null) {
         val otherParameterIdentifier = expectIdentifier(scanner, "fun_decl, After ,")
         expectCodeToken(scanner, CodeToken.COLON, "fun_decl, parameter colon")
-        parameters[otherParameterIdentifier] = type() ?: throw ParserException("Each parameter must have a type.")
+        parameters[otherParameterIdentifier] =
+          type() ?: throw ParserException("Each parameter must have a type. ${scanner.positionPreviousCoords().endCoords()}")
       }
       scanner.endSection()
     }
@@ -115,7 +114,7 @@ class Parser(val scanner: TokenScanner) {
       scanner.endSection(true)
       return null
     }
-    val path = path() ?: throw ParseException("No path specified for use_decl at ${useTk.endCoords()}")
+    val path = path() ?: throw ParserException("No path specified for use_decl at ${useTk.endCoords()}")
     scanner.startSection()
     val star = scanner.consumeMatchingCodeToken(CodeToken.DOT)?.let { scanner.consumeMatchingCodeToken(CodeToken.STAR) }
     scanner.endSection(star == null)
@@ -126,7 +125,7 @@ class Parser(val scanner: TokenScanner) {
       scanner.endSection(asOther == null)
     }
     if (!scanner.isPositionEOF() && scanner.positionPreviousCoords().endCoords().y == scanner.positionCoords().startCoords().y) {
-      throw ParserException("After a use statement there must be an new-line.")
+      throw ParserException("After a use statement there must be an new-line. at ${useTk.endCoords()}")
     }
     scanner.endSection()
     return GriddedObject.of(useTk.startCoords(), Expression.UseDeclaration(path, star != null, asOther), path.obj.identifiers.last().endCoords())
@@ -163,7 +162,7 @@ class Parser(val scanner: TokenScanner) {
     if (!scanner.isPositionEOF() && returnTk.endCoords().y == scanner.positionCoords().startCoords().y) {
       expr = expression()
       if (!scanner.isPositionEOF() && returnTk.endCoords().y == scanner.positionCoords().startCoords().y) {
-        throw ParserException("After a return statement there must be an new-line.")
+        throw ParserException("After a return statement there must be an new-line. at ${returnTk.endCoords()}")
       }
     }
     scanner.endSection()
@@ -178,7 +177,7 @@ class Parser(val scanner: TokenScanner) {
       return null
     }
     if (!scanner.isPositionEOF() && breakTk.endCoords().y == scanner.positionCoords().startCoords().y) {
-      throw ParserException("After a break statement there must be an new-line.")
+      throw ParserException("After a break statement there must be an new-line. at ${breakTk.endCoords()}")
     }
     scanner.endSection()
     return GriddedObject.of(breakTk.startCoords(), Expression.BreakStatement(), scanner.positionCoords().endCoords())
@@ -250,7 +249,7 @@ class Parser(val scanner: TokenScanner) {
       scanner.endSection(true)
       return if_expr()
     }
-    if(call.obj !is Expression.Primary.IdentifierExpression && call.obj !is Expression.Call) {
+    if (call.obj !is Expression.Primary.IdentifierExpression && call.obj !is Expression.Call) {
       throw ParserException("For the left-side of the assignment it only can be a Call or an Identifier")
     }
     return GriddedObject.of(
