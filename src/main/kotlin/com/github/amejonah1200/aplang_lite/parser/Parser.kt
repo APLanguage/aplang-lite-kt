@@ -236,7 +236,7 @@ class Parser(val scanner: TokenScanner) {
   fun expression(): GriddedObject<Expression> = assignment()
   fun assignment(): GriddedObject<Expression> {
     scanner.startSection()
-    val call = call()
+    val call = logic_or()
     val tk = scanner.consumeMatchingCodeTokens(
       arrayOf(
         CodeToken.PLUS_EQUAL, CodeToken.MINUS_EQUAL, CodeToken.STAR_EQUAL, CodeToken.STAR_STAR_EQUAL, CodeToken.SLASH_EQUAL,
@@ -249,6 +249,9 @@ class Parser(val scanner: TokenScanner) {
     if (tk == null) {
       scanner.endSection(true)
       return if_expr()
+    }
+    if(call.obj !is Expression.Primary.IdentifierExpression && call.obj !is Expression.Call) {
+      throw ParserException("For the left-side of the assignment it only can be a Call or an Identifier")
     }
     return GriddedObject.of(
       call.startCoords(),
