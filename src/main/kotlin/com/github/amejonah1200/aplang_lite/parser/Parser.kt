@@ -27,7 +27,7 @@ class Parser(val scanner: TokenScanner) {
 
   fun class_decl(): GriddedObject<Expression.ClassDeclaration>? {
     scanner.startSection()
-    val classTk = scanner.consumeMatchingKeywordToken(Keyword.FN)
+    val classTk = scanner.consumeMatchingKeywordToken(Keyword.CLASS)
     if (classTk == null) {
       scanner.endSection(true)
       return null
@@ -235,6 +235,7 @@ class Parser(val scanner: TokenScanner) {
 
   fun expression(): GriddedObject<Expression> = assignment()
   fun assignment(): GriddedObject<Expression> {
+    scanner.startSection()
     val call = call()
     val tk = scanner.consumeMatchingCodeTokens(
       arrayOf(
@@ -244,12 +245,16 @@ class Parser(val scanner: TokenScanner) {
         CodeToken.LESS_LESS_EQUAL, CodeToken.GREATER_GREATER_EQUAL, CodeToken.GREATER_GREATER_GREATER_EQUAL,
         CodeToken.EQUAL
       )
-    ) ?: return if_expr()
+    )
+    if (tk == null) {
+      scanner.endSection(true)
+      return if_expr()
+    }
     return GriddedObject.of(
       call.startCoords(),
       Expression.Assignment(call, tk, assignment()),
       scanner.positionPreviousCoords().endCoords()
-    )
+    ).also { scanner.endSection() }
   }
 
   fun if_expr(): GriddedObject<Expression> {
@@ -279,6 +284,7 @@ class Parser(val scanner: TokenScanner) {
     val operations = listOfUntilNull {
       Pair(scanner.consumeMatchingCodeTokens(ops) ?: return@listOfUntilNull null, next())
     }
+    scanner.endSection()
     return if (operations.isEmpty()) nextExpr
     else GriddedObject.of(
       nextExpr.startCoords(),
@@ -322,6 +328,7 @@ class Parser(val scanner: TokenScanner) {
         ), invocation()
       )
     }
+    if (invocation == null && calls.isEmpty()) return primary
     return GriddedObject.of(primary.startCoords(), Expression.Call(primary, invocation, calls), scanner.positionPreviousCoords().endCoords())
   }
 
@@ -330,9 +337,9 @@ class Parser(val scanner: TokenScanner) {
     return GriddedObject.of(tk.startCoords(), when (tk.obj.codeToken) {
       CodeToken.LEFT_PAREN -> Expression.Invocation.FunctionCall(
         if (scanner.consumeMatchingCodeToken(CodeToken.RIGHT_PAREN) == null) {
-          listOf(expression()) + listOfUntilNull {
+          (listOf(expression()) + listOfUntilNull {
             scanner.consumeMatchingCodeToken(CodeToken.COMMA)?.let { return@listOfUntilNull expression() }
-          }
+          }).also { expectCodeToken(scanner, CodeToken.RIGHT_PAREN, "invocation, close paren") }
         } else listOf()
       )
       CodeToken.LEFT_BRACKET -> Expression.Invocation.ArrayCall(expression())
@@ -351,15 +358,12 @@ class Parser(val scanner: TokenScanner) {
   }
 
   fun block(): GriddedObject<Expression.Block>? {
-    scanner.startSection()
     val openBrace = scanner.consumeMatchingCodeToken(CodeToken.LEFT_BRACE) ?: return null
     val stmts = mutableListOf<GriddedObject<Expression>>()
     while (!scanner.isPositionEOF() && scanner.peekMatchingCodeToken(CodeToken.RIGHT_BRACE) == null) {
-      scanner.advancePosition(1)
       stmts.add(var_decl() ?: statement())
     }
     expectCodeToken(scanner, CodeToken.RIGHT_BRACE, "block, closing brace")
-    scanner.endSection()
     return GriddedObject.of(openBrace.startCoords(), Expression.Block(stmts), scanner.positionPreviousCoords().endCoords())
   }
 
