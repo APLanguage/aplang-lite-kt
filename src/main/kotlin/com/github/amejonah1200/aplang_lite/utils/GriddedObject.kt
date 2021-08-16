@@ -90,7 +90,11 @@ class MultiLineObject<T>(val start: Point, obj: T, val end: Point) : GriddedObje
   }
 }
 
-data class Point(val x: Int, val y: Int)
+data class Point(val x: Int, val y: Int) {
+  fun expandTo(end: Point) = Area.of(this, end)
+}
+
+val EOF_AREA = OneLineArea(-1, -1, -1)
 
 sealed class Area {
   fun expandTo(endX: Int, endY: Int) = expandTo(Point(endX, endY))
@@ -102,6 +106,17 @@ sealed class Area {
   abstract fun startCoords(): Point
 
   abstract fun endCoords(): Point
+
+  companion object {
+    fun of(start: Point, end: Point): Area {
+      return if (start.y == end.y) OneLineArea(start, end.x - start.x)
+      else MultiLineArea(start, end)
+    }
+
+    fun of(start: Point, length: Int): Area {
+      return OneLineArea(start, length)
+    }
+  }
 }
 
 data class OneLineArea(val start: Point, val length: Int) : Area() {

@@ -52,6 +52,12 @@ object ASTPrinter {
       is BigInteger -> listOf(any.toString())
       is Boolean -> listOf(any.toString())
       is Enum<*> -> listOf(any.name)
+      is Area -> listOf(
+        when (any) {
+          is OneLineArea -> "[${any.start.y}:${any.start.x}+${any.length}]"
+          is MultiLineArea -> "[${any.start.x}:${any.start.y} -> ${any.end.x}:${any.end.y}]"
+        }
+      )
       else -> throw RuntimeException("shrug -> ${any.javaClass.simpleName}")
     }
   }
