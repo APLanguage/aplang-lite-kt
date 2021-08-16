@@ -1,6 +1,7 @@
 package com.github.amejonah1200.aplang_lite.parser
 
 import com.github.amejonah1200.aplang_lite.tokenizer.Token
+import com.github.amejonah1200.aplang_lite.utils.Area
 import com.github.amejonah1200.aplang_lite.utils.GriddedObject
 
 sealed class Expression {
@@ -96,4 +97,6 @@ sealed class Expression {
     data class DirectValue(val value: Token.ValueToken) : Primary()
     data class IdentifierExpression(val identifier: Token.IdentifierToken) : Primary()
   }
+
+  data class BrokenExpression(val area: Area) : Expression()
 }

@@ -70,27 +70,55 @@ class Parser(val scanner: TokenScanner, val underliner: Underliner?) {
     expectCodeToken(scanner, CodeToken.LEFT_PAREN, "fun_decl, opening paren")?.also { throw it }
     val parameters = mutableMapOf<GriddedObject<Token.IdentifierToken>, GriddedObject<Expression.Type>>()
     if (scanner.peekMatchingCodeToken(CodeToken.RIGHT_PAREN) == null) {
-      scanner.startSection()
-      val parameterIdentifier = expectIdentifier(scanner, "fun_decl, After ( no )")
-      expectCodeToken(scanner, CodeToken.COLON, "fun_decl, parameter colon")?.also { throw it }
-      parameters[parameterIdentifier] =
-        type() ?: throw ParserException("Each parameter must have a type. ${scanner.positionPreviousCoords().endCoords()}")
+      functionParameterDeclaration(parameters, "After (")
       while (scanner.consumeMatchingCodeToken(CodeToken.COMMA) != null) {
-        val otherParameterIdentifier = expectIdentifier(scanner, "fun_decl, After ,")
-        expectCodeToken(scanner, CodeToken.COLON, "fun_decl, parameter colon")?.also { throw it }
-        parameters[otherParameterIdentifier] =
-          type() ?: throw ParserException("Each parameter must have a type. ${scanner.positionPreviousCoords().endCoords()}")
+        functionParameterDeclaration(parameters, "After ,")
       }
-      scanner.endSection()
     }
-    expectCodeToken(scanner, CodeToken.RIGHT_PAREN, "fun_decl, closing paren.")?.also { throw it }
+    expectCodeToken(scanner, CodeToken.RIGHT_PAREN, "fun_decl, closing paren.")?.also {
+      errors.add(ParserError(it, scanner.positionCoords()))
+    }
     scanner.startSection()
     val returnType = scanner.consumeMatchingCodeToken(CodeToken.COLON)?.let { type() }
     scanner.endSection(returnType == null)
-    val block = block() ?: throw ParserException("Every Function has a body. ${scanner.positionPreviousCoords().endCoords()}")
+    val block = block()
     scanner.endSection()
-    return GriddedObject.of(fnTk.startCoords(), Expression.FunctionDeclaration(identifier, parameters, returnType, block), block.endCoords())
+    return if (block == null) {
+      errors.add(ParserError(ParserException("Every Function has a body."), scanner.positionCoords()))
+      GriddedObject.of(
+        fnTk.startCoords(),
+        Expression.BrokenExpression(fnTk.startCoords().expandTo(scanner.positionPreviousCoords().endCoords())),
+        scanner.positionPreviousCoords().endCoords()
+      )
+    } else GriddedObject.of(fnTk.startCoords(), Expression.FunctionDeclaration(identifier, parameters, returnType, block), block.endCoords())
   }
+
+  private fun functionParameterDeclaration(
+    parameters: MutableMap<GriddedObject<Token.IdentifierToken>, GriddedObject<Expression.Type>>,
+    whenToDeclare: String
+  ) {
+    try {
+      scanner.startSection()
+      val parameterIdentifier = expectIdentifier(scanner, "fun_decl, $whenToDeclare")
+      expectCodeToken(scanner, CodeToken.COLON, "fun_decl, parameter colon")?.also { throw it }
+      parameters[parameterIdentifier] =
+        type() ?: throw ParserException("Each parameter must have a type.")
+      scanner.endSection()
+    } catch (e: ParserException) {
+      scanner.endSection(true)
+      errors.add(ParserError(e, listOfUntilNull {
+        scanner.consumeWithPredicate {
+          if (it.obj is Token.SignToken) {
+            (it.obj as Token.SignToken).codeToken !in arrayOf(CodeToken.RIGHT_PAREN, CodeToken.COMMA)
+          } else true
+        }
+      }.let {
+        if (it.isNotEmpty()) it.reduce { acc, griddedObject -> acc.expandTo(griddedObject.endCoords()) }
+          .area() else scanner.positionPreviousCoords()
+      }, "Syntax for a parameter is: <identifier> : <type>"))
+    }
+  }
+
 
   fun var_decl(): GriddedObject<Expression.VarDeclaration>? {
     scanner.startSection()
