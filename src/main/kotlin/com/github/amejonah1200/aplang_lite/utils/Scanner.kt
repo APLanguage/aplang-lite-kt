@@ -215,7 +215,6 @@ open class GriddedScanner<T>(elements: List<GriddedObject<T>>) : Scanner<Gridded
   fun peekPreviousCoords(): Area {
     return if (peek == 0) peekCoords()
     else elements[peek - 1].area()
-
   }
 
   fun peekCoords() = elements[peek].area()
@@ -230,7 +229,7 @@ open class GriddedScanner<T>(elements: List<GriddedObject<T>>) : Scanner<Gridded
     else elements[position - 1].area()
   }
 
-  fun positionCoords() = elements[position].area()
+  fun positionCoords() = if (isPositionEOF()) EOF_AREA else elements[position].area()
 
   fun positionNextCoords(): Area {
     return if (position + 1 >= elements.size) peekCoords()

@@ -4,7 +4,11 @@ class Underliner(val lines: List<String>) {
 
   fun underline(point: Point) = underline(point, point)
 
-  fun underline(area: Area) = underline(area.startCoords(), area.endCoords())
+  fun underline(area: Area) {
+    if (area != EOF_AREA)
+      underline(area.startCoords(), area.endCoords())
+    else underline(Point((lines.lastOrNull() ?: "").length, lines.size - 1))
+  }
 
   fun underline(griddedObject: GriddedObject<*>) = underline(griddedObject.startCoords(), griddedObject.endCoords())
 
