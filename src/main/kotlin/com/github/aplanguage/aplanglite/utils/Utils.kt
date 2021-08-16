@@ -1,4 +1,4 @@
-package com.github.amejonah1200.aplang_lite.utils
+package com.github.aplanguage.aplanglite.utils
 
 inline fun <T> listOfUntilNull(generator: () -> T?): List<T> {
   var temp: T? = generator()

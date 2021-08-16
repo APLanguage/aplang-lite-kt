@@ -1,4 +1,4 @@
-package com.github.amejonah1200.aplang_lite.tokenizer
+package com.github.aplanguage.aplanglite.tokenizer
 
 import java.math.BigInteger
 
@@ -314,7 +314,8 @@ val LONGEST_TOKEN_LENGTH: Int = arrayOf(
   Keyword.values().map(Keyword::name),
   ValueKeyword.values().map(ValueKeyword::name)
 ).maxOf { it.maxByOrNull(String::length)!!.length }
-val KEYWORDS = listOf(Keyword.values().map { it.name.lowercase() },
+val KEYWORDS = listOf(
+  Keyword.values().map { it.name.lowercase() },
   ValueKeyword.values().map { it.name.lowercase() }).flatten()
 
 fun parseToken(string: String): Pair<Token, Int>? {

@@ -1,9 +1,10 @@
-package com.github.amejonah1200.aplang_lite.parser
+package com.github.aplanguage.aplanglite.parser
 
-import com.github.amejonah1200.aplang_lite.tokenizer.CodeToken
-import com.github.amejonah1200.aplang_lite.tokenizer.Keyword
-import com.github.amejonah1200.aplang_lite.tokenizer.Token
+import com.github.aplanguage.aplanglite.tokenizer.CodeToken
+import com.github.aplanguage.aplanglite.tokenizer.Keyword
+import com.github.aplanguage.aplanglite.tokenizer.Token
 import com.github.amejonah1200.aplang_lite.utils.*
+import com.github.aplanguage.aplanglite.utils.*
 
 class ParserException(msg: String) : RuntimeException(msg)
 

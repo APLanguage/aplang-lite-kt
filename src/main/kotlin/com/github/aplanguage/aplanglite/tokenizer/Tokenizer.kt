@@ -1,7 +1,7 @@
-package com.github.amejonah1200.aplang_lite.tokenizer
+package com.github.aplanguage.aplanglite.tokenizer
 
-import com.github.amejonah1200.aplang_lite.utils.CharScanner
-import com.github.amejonah1200.aplang_lite.utils.OneLineObject
+import com.github.aplanguage.aplanglite.utils.CharScanner
+import com.github.aplanguage.aplanglite.utils.OneLineObject
 import java.math.BigInteger
 
 enum class ScanErrorType {

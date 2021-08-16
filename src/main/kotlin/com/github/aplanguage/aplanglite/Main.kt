@@ -1,9 +1,12 @@
-package com.github.amejonah1200.aplang_lite
+package com.github.aplanguage.aplanglite
 
-import com.github.amejonah1200.aplang_lite.parser.Parser
-import com.github.amejonah1200.aplang_lite.tokenizer.ScanResult
-import com.github.amejonah1200.aplang_lite.tokenizer.scan
-import com.github.amejonah1200.aplang_lite.utils.*
+import com.github.aplanguage.aplanglite.parser.Parser
+import com.github.aplanguage.aplanglite.tokenizer.ScanResult
+import com.github.aplanguage.aplanglite.tokenizer.scan
+import com.github.aplanguage.aplanglite.utils.ASTPrinter
+import com.github.aplanguage.aplanglite.utils.CharScanner
+import com.github.aplanguage.aplanglite.utils.TokenScanner
+import com.github.aplanguage.aplanglite.utils.Underliner
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
@@ -43,11 +46,19 @@ object Main {
           println("Parsing " + indexedScan.value.first.name)
           if (indexedScan.value.second.liteErrors.isNotEmpty()) println("Scan n" + indexedScan.index + " is not valid")
           else {
-            val program =
-              Parser(TokenScanner(indexedScan.value.second.tokens), Underliner(Files.readAllLines(indexedScan.value.first.toPath()))).program()
+            val parser =
+              Parser(TokenScanner(indexedScan.value.second.tokens), Underliner(Files.readAllLines(indexedScan.value.first.toPath())))
 //            println(prettyPrintAST(program))
 ////            println()
-            ASTPrinter.print(program)
+            ASTPrinter.print(parser.program())
+            if (parser.errors().isNotEmpty()) parser.errors().forEach {
+              parser.underliner?.underline(it.area)
+              it.message?.also(::println)
+              println("Error at Parsing: " + it.exception.message)
+              for (element in it.exception.stackTrace) {
+                println("  at ${element.className}.${element.methodName}(${element.fileName}:${element.lineNumber})")
+              }
+            }
 //            val underliner = Underliner(Files.readAllLines(indexedScan.value.first.toPath()))
 //            program?.obj?.declarations?.forEach { underliner.underline(it.startCoords(), it.endCoords()) }
           }

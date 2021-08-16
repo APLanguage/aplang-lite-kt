@@ -1,7 +1,7 @@
-package com.github.amejonah1200.aplang_lite.utils
+package com.github.aplanguage.aplanglite.utils
 
-import com.github.amejonah1200.aplang_lite.parser.Expression
-import com.github.amejonah1200.aplang_lite.tokenizer.Token
+import com.github.aplanguage.aplanglite.parser.Expression
+import com.github.aplanguage.aplanglite.tokenizer.Token
 import java.math.BigInteger
 
 object ASTPrinter {

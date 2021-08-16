@@ -1,8 +1,8 @@
-package com.github.amejonah1200.aplang_lite.parser
+package com.github.aplanguage.aplanglite.parser
 
-import com.github.amejonah1200.aplang_lite.tokenizer.Token
-import com.github.amejonah1200.aplang_lite.utils.Area
-import com.github.amejonah1200.aplang_lite.utils.GriddedObject
+import com.github.aplanguage.aplanglite.tokenizer.Token
+import com.github.aplanguage.aplanglite.utils.Area
+import com.github.aplanguage.aplanglite.utils.GriddedObject
 
 sealed class Expression {
   data class Program(val uses: List<GriddedObject<Expression>>, val declarations: List<GriddedObject<Expression>>) : Expression()

@@ -1,4 +1,4 @@
-package com.github.amejonah1200.aplang_lite.utils
+package com.github.aplanguage.aplanglite.utils
 
 sealed class GriddedObject<out T>(open val obj: T) {
 

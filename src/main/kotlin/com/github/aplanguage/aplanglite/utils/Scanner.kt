@@ -1,8 +1,8 @@
-package com.github.amejonah1200.aplang_lite.utils
+package com.github.aplanguage.aplanglite.utils
 
-import com.github.amejonah1200.aplang_lite.tokenizer.CodeToken
-import com.github.amejonah1200.aplang_lite.tokenizer.Keyword
-import com.github.amejonah1200.aplang_lite.tokenizer.Token
+import com.github.aplanguage.aplanglite.tokenizer.CodeToken
+import com.github.aplanguage.aplanglite.tokenizer.Keyword
+import com.github.aplanguage.aplanglite.tokenizer.Token
 
 
 open class Scanner<T>(val elements: List<T>) {

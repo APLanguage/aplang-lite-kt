@@ -1,7 +1,8 @@
 package parser
 
 import com.github.amejonah1200.aplang_lite.tokenizer.*
-import com.github.amejonah1200.aplang_lite.utils.CharScanner
+import com.github.aplanguage.aplanglite.utils.CharScanner
+import com.github.aplanguage.aplanglite.tokenizer.*
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.DynamicTest.dynamicTest
 import org.junit.jupiter.api.Test
