@@ -15,7 +15,7 @@ object ASTPrinter {
   private fun convert(any: Any?): List<String> {
     if (any == null) return emptyList()
     return when (any) {
-      is String -> listOf(any)
+      is String -> listOf("\"$any\"")
       is GriddedObject<*> -> convertGridded(any)
       is Map<*, *> -> if (any.isEmpty()) emptyList() else if (any.size == 1) {
         val lines = convert(any.values.first())
@@ -29,7 +29,7 @@ object ASTPrinter {
             val obj = convert(entry.value)
             if (obj.size == 1) listOf("  \"${entry.key}\" : ${obj.first()}")
             else listOf("  \"${entry.key}\" : ${obj.first()}", *obj.drop(1).toTypedArray())
-          }.flatten().toTypedArray(), "}")
+          }.flatten().toTypedArray(), "  }")
         }
       is List<*> -> any.filterNotNull().map { convert(it) }.filter { it.isNotEmpty() }.let { elements ->
         elements.map { element ->
