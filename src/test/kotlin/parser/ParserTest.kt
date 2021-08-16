@@ -1,6 +1,5 @@
 package parser
 
-import com.github.amejonah1200.aplang_lite.tokenizer.*
 import com.github.aplanguage.aplanglite.utils.CharScanner
 import com.github.aplanguage.aplanglite.tokenizer.*
 import org.junit.jupiter.api.DynamicTest
@@ -9,14 +8,14 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestFactory
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 
 class ParserTest {
 
   @Test
   fun parseTokenTest() {
     for (keyword in KEYWORDS) {
-      val tk = parseToken(keyword)
-      assert(tk.isPresent)
+      assertNotNull(parseToken(keyword))
     }
   }
 

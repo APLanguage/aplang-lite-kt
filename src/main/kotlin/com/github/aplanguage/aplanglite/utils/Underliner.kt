@@ -14,8 +14,8 @@ class Underliner(val lines: List<String>) {
 
   fun underline(start: Point, end: Point) {
     for (y in start.y..end.y) {
-      val line_opt = lines.getOrNull(y) ?: break;
-      val line = line_opt;
+      val line_opt = lines.getOrNull(y) ?: break
+      val line = line_opt
       if (line.isEmpty()) {
         continue; }
       println(line)
@@ -23,7 +23,7 @@ class Underliner(val lines: List<String>) {
         for (blah in 0 until start.x) {
           print(" ")
         }
-        print("↑");
+        print("↑")
         if (end.y == start.y) {
           when (end.x - start.x) {
             0 -> {
@@ -42,7 +42,7 @@ class Underliner(val lines: List<String>) {
             print("_")
           }
         }
-        println();
+        println()
       } else if (y == end.y) {
         val range = Regex("^( *)").find(line)!!.groups[1]!!.range
         for (blah in range) {
@@ -60,7 +60,7 @@ class Underliner(val lines: List<String>) {
         for (blah in range.last until line.length - 1) {
           print("_")
         }
-        println();
+        println()
       }
     }
   }
