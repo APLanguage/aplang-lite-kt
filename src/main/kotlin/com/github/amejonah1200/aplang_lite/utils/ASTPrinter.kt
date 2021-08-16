@@ -21,19 +21,31 @@ object ASTPrinter {
         val lines = convert(any.values.first())
         if (lines.isEmpty()) listOf("{ \"${any.keys.first()}\" : ?}")
         else if (lines.size == 1) listOf("{ \"${any.keys.first()}\" : ${lines.first()} }")
-        else listOf("{ \"${any.keys.first()}\" : ${lines.first()}", *lines.subList(1, lines.size).toTypedArray() , "}")
+        else listOf("{ \"${any.keys.first()}\" : ${lines.first()}", *lines.subList(1, lines.size).toTypedArray(), "}")
       } else any.filter { it.key != null && it.value != null }
         .let {
           if (it.isEmpty()) emptyList()
-          else listOf("{", *it.map { entry -> "\"${entry.key}\" :${convert(entry.value).joinToString("\n") { "   $it" }}" }.toTypedArray(), "}")
+          else listOf("{", *it.map { entry ->
+            val obj = convert(entry.value)
+            if (obj.size == 1) listOf("  \"${entry.key}\" : ${obj.first()}")
+            else listOf("  \"${entry.key}\" : ${obj.first()}", *obj.drop(1).toTypedArray())
+          }.flatten().toTypedArray(), "}")
         }
-      is List<*> -> any.filterNotNull().map { convert(it) }.filter { it.isNotEmpty() }.let {
-        it.map {
-          if (it.size == 1) "[${it[0]}]"
-          else "[\n${it.joinToString("\n") { "   $it" }}\n]"
-        }
-      }
-      is Pair<*, *> -> listOf("(", "   " + convert(any.first), "   " + convert(any.second), ")")
+      is List<*> -> any.filterNotNull().map { convert(it) }.filter { it.isNotEmpty() }.let { elements ->
+        elements.map { element ->
+          if (element.size == 1) listOf(element[0]).toMutableList()
+          else element.map { s -> "    $s" }.toMutableList()
+        }.mapIndexed { index, element ->
+          if (index != elements.size - 1) {
+            element[element.size - 1] = element.last() + ","
+          }
+          element
+        }.toMutableList()
+      }.apply {
+        first()[0] = "[" + first().first()
+        last()[last().size - 1] = last().last() + "]"
+      }.flatten()
+      is Pair<*, *> -> listOf("(", *convert(any.first).map { "  $it" }.toTypedArray(), *convert(any.second).map { "  $it" }.toTypedArray(), ")")
       is Expression -> objToLines(convertObjWithFields(any))
       is Token -> objToLines(convertObjWithFields(any))
       is Expression.Invocation -> objToLines(convertObjWithFields(any))
@@ -59,10 +71,10 @@ object ASTPrinter {
   }
 
   private fun objToLines(obj: Pair<String, Map<String, Any>>): List<String> {
-    val fields = convert(obj.second)
+    val fields = convert(if (obj.second.size == 1) obj.second.values.first() else obj.second)
     return if (fields.isEmpty()) listOf(obj.first)
-    else if (fields.size == 1) listOf(obj.first + fields.first())
-    else listOf(obj.first + "(", *fields.subList(1, fields.size - 1).map { "  $it" }.toTypedArray(), ")")
+    else if (fields.size == 1) listOf(obj.first + "(" + fields.first() + ")")
+    else listOf(obj.first + "(" + fields.first(), *fields.subList(1, fields.size - 1).map { "  $it" }.toTypedArray(), fields.last() + ")")
   }
 
   private fun convertGridded(griddedObject: GriddedObject<*>): List<String> {
