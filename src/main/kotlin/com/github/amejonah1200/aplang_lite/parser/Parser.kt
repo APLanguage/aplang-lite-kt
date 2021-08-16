@@ -5,11 +5,12 @@ import com.github.amejonah1200.aplang_lite.tokenizer.Keyword
 import com.github.amejonah1200.aplang_lite.tokenizer.Token
 import com.github.amejonah1200.aplang_lite.utils.GriddedObject
 import com.github.amejonah1200.aplang_lite.utils.TokenScanner
+import com.github.amejonah1200.aplang_lite.utils.Underliner
 import com.github.amejonah1200.aplang_lite.utils.listOfUntilNull
 
 class ParserException(msg: String) : RuntimeException(msg)
 
-class Parser(val scanner: TokenScanner) {
+class Parser(val scanner: TokenScanner, val underliner: Underliner?) {
 
   fun program(): GriddedObject<Expression.Program>? {
     val uses = listOfUntilNull(this::use_decl)
@@ -81,7 +82,7 @@ class Parser(val scanner: TokenScanner) {
     scanner.startSection()
     val returnType = scanner.consumeMatchingCodeToken(CodeToken.COLON)?.let { type() }
     scanner.endSection(returnType == null)
-    val block = block() ?: throw ParserException("Every Function has a body.")
+    val block = block() ?: throw ParserException("Every Function has a body. ${scanner.positionPreviousCoords().endCoords()}")
     scanner.endSection()
     return GriddedObject.of(fnTk.startCoords(), Expression.FunctionDeclaration(identifier, parameters, returnType, block), block.endCoords())
   }
@@ -101,7 +102,7 @@ class Parser(val scanner: TokenScanner) {
     val expr = scanner.consumeMatchingCodeToken(CodeToken.EQUAL)?.let { expression() }
     scanner.endSection(expr == null)
     if (!scanner.isPositionEOF() && scanner.positionPreviousCoords().endCoords().y == scanner.positionCoords().startCoords().y) {
-      throw ParserException("After a var declaration there must be an new-line.")
+      throw ParserException("After a var declaration there must be an new-line. ${scanner.positionPreviousCoords().endCoords()}")
     }
     scanner.endSection()
     return GriddedObject.of(varTk.startCoords(), Expression.VarDeclaration(identifier, type, expr), scanner.positionPreviousCoords().endCoords())
@@ -128,7 +129,7 @@ class Parser(val scanner: TokenScanner) {
       throw ParserException("After a use statement there must be an new-line. at ${useTk.endCoords()}")
     }
     scanner.endSection()
-    return GriddedObject.of(useTk.startCoords(), Expression.UseDeclaration(path, star != null, asOther), path.obj.identifiers.last().endCoords())
+    return GriddedObject.of(useTk.startCoords(), Expression.UseDeclaration(path, star != null, asOther), scanner.positionPreviousCoords().endCoords())
   }
 
   fun statement(): GriddedObject<Expression> =
@@ -250,7 +251,11 @@ class Parser(val scanner: TokenScanner) {
       return if_expr()
     }
     if (call.obj !is Expression.Primary.IdentifierExpression && call.obj !is Expression.Call) {
-      throw ParserException("For the left-side of the assignment it only can be a Call or an Identifier")
+      throw ParserException(
+        "For the left-side of the assignment it only can be a Call or an Identifier. ${
+          scanner.positionPreviousCoords().endCoords()
+        }"
+      )
     }
     return GriddedObject.of(
       call.startCoords(),
@@ -396,43 +401,52 @@ class Parser(val scanner: TokenScanner) {
     scanner.endSection()
     return GriddedObject.of(tk.startCoords(), Expression.Path(listOf(tk) + others), (others.lastOrNull() ?: tk).endCoords())
   }
-}
 
-private fun expectCodeToken(scanner: TokenScanner, codeToken: CodeToken, message: String? = null) {
-  val tk = scanner.consumeMatchingInnerClass(Token.SignToken::class.java)
-    ?: throw ParserException(
-      (if (message == null) "" else "$message. ") + "Expected Token.SignToken at ${
-        scanner.positionCoords().startCoords()
-      }, got " + (scanner.consume()?.obj ?: "EOF")
-    )
+  private fun expectCodeToken(scanner: TokenScanner, codeToken: CodeToken, message: String? = null) {
+    val tk = scanner.consumeMatchingInnerClass(Token.SignToken::class.java)
+      ?: (underliner?.underline(scanner.positionCoords())).let {
+        throw ParserException(
+          (if (message == null) "" else "$message. ") + "Expected Token.SignToken at ${
+            scanner.positionCoords().startCoords()
+          }, got " + (scanner.consume()?.obj ?: "EOF")
+        )
+      }
 
-  if (tk.obj.codeToken != codeToken) throw ParserException(
-    (if (message == null) "" else "$message. ") + "Expected $codeToken at ${
-      scanner.positionCoords().startCoords()
-    }, got ${tk.obj.codeToken}"
-  )
-}
+    if (tk.obj.codeToken != codeToken) (underliner?.underline(scanner.positionPreviousCoords())).let {
+      throw ParserException(
+        (if (message == null) "" else "$message. ") + "Expected $codeToken at ${
+          scanner.positionCoords().startCoords()
+        }, got ${tk.obj.codeToken}"
+      )
+    }
+  }
 
-private fun expectKeywordToken(scanner: TokenScanner, keyword: Keyword, message: String? = null) {
-  val tk = scanner.consumeMatchingInnerClass(Token.KeywordToken::class.java)
-    ?: throw ParserException(
-      (if (message == null) "" else "$message. ") + "Expected Token.KeywordToken at ${
-        scanner.positionCoords().startCoords()
-      }, got " + (scanner.consume()?.obj ?: "EOF")
-    )
+  private fun expectKeywordToken(scanner: TokenScanner, keyword: Keyword, message: String? = null) {
+    val tk = scanner.consumeMatchingInnerClass(Token.KeywordToken::class.java)
+      ?: (underliner?.underline(scanner.positionCoords())).let {
+        throw ParserException(
+          (if (message == null) "" else "$message. ") + "Expected Token.KeywordToken at ${
+            scanner.positionCoords().startCoords()
+          }, got " + (scanner.consume()?.obj ?: "EOF")
+        )
+      }
+    if (tk.obj.keyword != keyword) (underliner?.underline(scanner.positionPreviousCoords())).let {
+      throw ParserException(
+        (if (message == null) "" else "$message. ") + "Expected $keyword at ${
+          scanner.positionCoords().startCoords()
+        }, got ${tk.obj.keyword}"
+      )
+    }
+  }
 
-  if (tk.obj.keyword != keyword) throw ParserException(
-    (if (message == null) "" else "$message. ") + "Expected $keyword at ${
-      scanner.positionCoords().startCoords()
-    }, got ${tk.obj.keyword}"
-  )
-}
-
-private fun expectIdentifier(scanner: TokenScanner, message: String? = null): GriddedObject<Token.IdentifierToken> {
-  return scanner.consumeMatchingInnerClass(Token.IdentifierToken::class.java)
-    ?: throw ParserException(
-      (if (message == null) "" else "$message. ") + "Expected Token.IdentifierToken at ${
-        scanner.positionCoords().startCoords()
-      }, got " + (scanner.consume()?.obj ?: "EOF")
-    )
+  private fun expectIdentifier(scanner: TokenScanner, message: String? = null): GriddedObject<Token.IdentifierToken> {
+    return scanner.consumeMatchingInnerClass(Token.IdentifierToken::class.java)
+      ?: (underliner?.underline(scanner.positionCoords())).let {
+        throw ParserException(
+          (if (message == null) "" else "$message. ") + "Expected Token.IdentifierToken at ${
+            scanner.positionCoords().startCoords()
+          }, got " + (scanner.consume()?.obj ?: "EOF")
+        )
+      }
+  }
 }
