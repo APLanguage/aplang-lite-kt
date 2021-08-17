@@ -55,6 +55,14 @@ open class Scanner<T>(val elements: List<T>) {
     return null
   }
 
+  fun consumeUntilEOFOrPredicate(predicate: (T) -> Boolean): List<T> {
+    return listOfUntilNull {
+      val element = consume() ?: return@listOfUntilNull null
+      if (predicate(element)) element
+      else rewindPosition(1).let { null }
+    }
+  }
+
   open fun <T> consumeMatchingClass(clazz: Class<T>) = consumeWithPredicate(clazz::isInstance)
 
   fun peek(): T? = elements.getOrNull(peek)?.also { peek += 1 }
@@ -77,6 +85,14 @@ open class Scanner<T>(val elements: List<T>) {
     if (predicate(obj)) return obj
     rewindPeek(1)
     return null
+  }
+
+  fun peekUntilEOFOrPredicate(predicate: (T) -> Boolean): List<T> {
+    return listOfUntilNull {
+      val element = peek() ?: return@listOfUntilNull null
+      if (predicate(element)) element
+      else rewindPeek(1).let { null }
+    }
   }
 
   fun advancePeek(nb: Int) {
