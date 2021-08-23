@@ -92,6 +92,8 @@ class MultiLineObject<T>(val start: Point, obj: T, val end: Point) : GriddedObje
 
 data class Point(val x: Int, val y: Int) {
   fun expandTo(end: Point) = Area.of(this, end)
+
+  fun toArea() = Area.of(this, this)
 }
 
 val EOF_AREA = OneLineArea(-1, -1, -1)

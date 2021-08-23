@@ -3,7 +3,6 @@ package com.github.aplanguage.aplanglite.parser
 import com.github.aplanguage.aplanglite.tokenizer.CodeToken
 import com.github.aplanguage.aplanglite.tokenizer.Keyword
 import com.github.aplanguage.aplanglite.tokenizer.Token
-import com.github.amejonah1200.aplang_lite.utils.*
 import com.github.aplanguage.aplanglite.utils.*
 
 class ParserException(msg: String) : RuntimeException(msg)
@@ -142,16 +141,19 @@ class Parser(val scanner: TokenScanner, val underliner: Underliner?) {
     return GriddedObject.of(varTk.startCoords(), Expression.VarDeclaration(identifier, type, expr), scanner.positionPreviousCoords().endCoords())
   }
 
-  fun use_decl(): GriddedObject<Expression.UseDeclaration>? {
+  fun use_decl(): GriddedObject<Expression>? {
     scanner.startSection()
     val useTk = scanner.consumeMatchingKeywordToken(Keyword.USE)
     if (useTk == null) {
       scanner.endSection(true)
       return null
     }
-    val path = path() ?: throw ParserException("No path specified for use_decl at ${useTk.endCoords()}")
+    val path = path()
+    if (path == null) {
+      errors.add(ParserError(ParserException("No path specified for use_decl"), scanner.positionPreviousCoords()))
+    }
     scanner.startSection()
-    val star = scanner.consumeMatchingCodeToken(CodeToken.DOT)?.let { scanner.consumeMatchingCodeToken(CodeToken.STAR) }
+    val star = path?.let { scanner.consumeMatchingCodeToken(CodeToken.DOT)?.let { scanner.consumeMatchingCodeToken(CodeToken.STAR) } }
     scanner.endSection(star == null)
     var asOther: GriddedObject<Token.IdentifierToken>? = null
     if (star == null) {
@@ -160,9 +162,30 @@ class Parser(val scanner: TokenScanner, val underliner: Underliner?) {
       scanner.endSection(asOther == null)
     }
     if (!scanner.isPositionEOF() && scanner.positionPreviousCoords().endCoords().y == scanner.positionCoords().startCoords().y) {
-      throw ParserException("After a use statement there must be an new-line. at ${useTk.endCoords()}")
+      val useY = scanner.positionPreviousCoords().endCoords().y
+      val leftOver = scanner.consumeUntilEOFOrPredicate {
+        it.startCoords().y == useY
+      }.let { it.first().expandTo(it.last().endCoords()).area() }
+      if (path != null) {
+        errors.add(ParserError(ParserException("After a use statement there must be an new-line."), leftOver))
+      } else {
+        if (asOther != null || star != null) {
+          errors.add(ParserError(ParserException("No path specified."), useTk.endCoords().toArea()))
+        } else {
+          errors.add(ParserError(ParserException("After a use statement there must be an new-line."), leftOver))
+        }
+        scanner.endSection()
+        return GriddedObject.of(useTk.startCoords(), Expression.BrokenExpression(useTk.area().expandTo(leftOver.endCoords())), leftOver.endCoords())
+      }
     }
     scanner.endSection()
+    if (path == null) {
+      return GriddedObject.of(
+        useTk.startCoords(),
+        Expression.BrokenExpression(useTk.area().expandTo(scanner.positionPreviousCoords().endCoords())),
+        scanner.positionPreviousCoords().endCoords()
+      )
+    }
     return GriddedObject.of(useTk.startCoords(), Expression.UseDeclaration(path, star != null, asOther), scanner.positionPreviousCoords().endCoords())
   }
 
