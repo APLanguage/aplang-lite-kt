@@ -14,6 +14,8 @@ sealed class ReturnValue {
 
   open fun applyUnaryOp(token: CodeToken): ReturnValue = ReturnValue.Unit
 
+  open fun asString(): String = this.javaClass.simpleName
+
   object Unit : ReturnValue() {
     override fun toString() = "Unit"
   }
@@ -39,6 +41,8 @@ sealed class ReturnValue {
         CodeToken.STAR,
         CodeToken.STAR_STAR
       )
+
+      override fun asString() = number.toString()
 
       override fun applyBinaryOp(token: CodeToken, second: ReturnValue): ReturnValue {
         return when (token) {
@@ -122,6 +126,8 @@ sealed class ReturnValue {
         CodeToken.GREATER_GREATER_GREATER
       )
 
+      override fun asString() = number.toString()
+
       override fun applyBinaryOp(token: CodeToken, second: ReturnValue): ReturnValue {
         return when (token) {
           CodeToken.BANG_EQUAL -> when (second) {
@@ -177,6 +183,10 @@ sealed class ReturnValue {
             is IntegerNumber -> IntegerNumber(BigInteger.valueOf(number).pow(second.number.toInt()).toLong())
             else -> Unit
           }
+          CodeToken.PERCENTAGE -> when (second) {
+            is IntegerNumber -> IntegerNumber(number % second.number)
+            else -> Unit
+          }
           else -> throw InterpreterException("Not supported ${token.name}")
         }
       }
@@ -197,6 +207,8 @@ sealed class ReturnValue {
         else -> throw InterpreterException("Not supported ${token.name}")
       }
     }
+
+    override fun asString() = string
   }
 
   data class IterableValue(val iterable: Iterable<ReturnValue>) : ReturnValue(), Iterable<ReturnValue> {
@@ -226,5 +238,9 @@ sealed class ReturnValue {
     override fun supportUnaryOperation(token: CodeToken) = token == CodeToken.BANG
 
     override fun applyUnaryOp(token: CodeToken) = if (token == CodeToken.BANG) BooleanValue(!boolean) else Unit
+
+    override fun asString() = boolean.toString()
   }
+
+  data class CallableValue(val callable: (Array<ReturnValue>) -> ReturnValue) : ReturnValue()
 }
