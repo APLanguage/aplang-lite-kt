@@ -1,5 +1,7 @@
 package com.github.aplanguage.aplanglite.utils
 
+import com.github.aplanguage.aplanglite.interpreter.ReturnValue
+import com.github.aplanguage.aplanglite.interpreter.Structure
 import com.github.aplanguage.aplanglite.parser.Expression
 import com.github.aplanguage.aplanglite.tokenizer.Token
 import java.math.BigInteger
@@ -46,9 +48,8 @@ object ASTPrinter {
         last()[last().size - 1] = last().last() + "]"
       }.flatten()
       is Pair<*, *> -> listOf("(", *convert(any.first).map { "  $it" }.toTypedArray(), *convert(any.second).map { "  $it" }.toTypedArray(), ")")
-      is Expression, is Token, is Expression.Invocation, is Expression.Path -> objToLines(convertObjWithFields(any))
-      is BigInteger -> listOf(any.toString())
-      is Boolean -> listOf(any.toString())
+      is Expression, is Token, is Expression.Invocation, is Structure, is ReturnValue -> objToLines(convertObjWithFields(any))
+      is BigInteger, is Boolean, is Double, is Long, is Int -> listOf(any.toString())
       is Enum<*> -> listOf(any.name)
       is Area -> listOf(
         when (any) {
@@ -56,6 +57,8 @@ object ASTPrinter {
           is MultiLineArea -> "[${any.start.x}:${any.start.y} -> ${any.end.x}:${any.end.y}]"
         }
       )
+      is Expression.Type -> listOf("Type(Path(${any.path.identifiers.joinToString(".") { it.obj.identifier }}))")
+      is Expression.Path -> listOf("Path(${any.identifiers.joinToString(".") { it.obj.identifier }})")
       else -> throw RuntimeException("shrug -> ${any.javaClass.simpleName}")
     }
   }
