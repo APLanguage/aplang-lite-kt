@@ -91,7 +91,16 @@ sealed class Expression {
     }
   }
 
-  data class Block(val statements: List<GriddedObject<Expression>>) : Expression()
+  data class Block(val statements: List<GriddedObject<Expression>>) : Expression() {
+    fun run(interpreter: Interpreter, scope: Interpreter.Scope): ReturnValue {
+      var returnValue: ReturnValue = ReturnValue.Unit
+      val blockScope = Interpreter.Scope(mutableMapOf(), scope)
+      for (statement in statements) {
+        returnValue = interpreter.runExpression(blockScope, statement.obj)
+      }
+      return returnValue
+    }
+  }
 
   sealed class DataExpression : Expression() {
 

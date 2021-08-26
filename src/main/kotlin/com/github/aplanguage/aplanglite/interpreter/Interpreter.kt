@@ -20,14 +20,7 @@ class Interpreter {
 
   fun runExpression(scope: Scope, expression: Expression): ReturnValue {
     return when (expression) {
-      is Expression.Block -> {
-        var returnValue: ReturnValue = ReturnValue.Unit
-        val blockScope = Scope(mutableMapOf(), scope)
-        for (statement in expression.statements) {
-          returnValue = runExpression(blockScope, statement.obj)
-        }
-        returnValue
-      }
+      is Expression.Block -> expression.run(this, scope)
       else -> TODO()
     }
   }
