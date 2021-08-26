@@ -116,7 +116,19 @@ sealed class Expression {
       val condition: GriddedObject<Expression>,
       val thenExpr: GriddedObject<Expression>,
       val elseExpr: GriddedObject<Expression>
-    ) : DataExpression()
+    ) : DataExpression() {
+      override fun run(interpreter: Interpreter, scope: Interpreter.Scope): ReturnValue {
+        val conditionValue: ReturnValue.BooleanValue = when (val expr = condition.obj) {
+          is BrokenExpression -> throw InterpreterException("Cannot execute broken at ${condition.area()}.")
+          is DataExpression -> expr.run(interpreter, scope).let {
+            if (it is ReturnValue.BooleanValue) it
+            else throw InterpreterException("Expected BooleanValue, got ${it.javaClass.simpleName} with value: $it")
+          }
+          else -> throw InterpreterException("No ${condition.obj.javaClass.simpleName} as condition allowed at ${condition.area()}.")
+        }
+        return interpreter.runExpression(Interpreter.Scope(mutableMapOf(), scope), if (conditionValue.boolean) thenExpr.obj else elseExpr.obj)
+      }
+    }
 
     data class BinaryOperation(
       val first: GriddedObject<Expression>,
