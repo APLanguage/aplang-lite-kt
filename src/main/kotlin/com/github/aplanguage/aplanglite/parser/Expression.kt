@@ -3,6 +3,7 @@ package com.github.aplanguage.aplanglite.parser
 import com.github.aplanguage.aplanglite.interpreter.Interpreter
 import com.github.aplanguage.aplanglite.interpreter.InterpreterException
 import com.github.aplanguage.aplanglite.interpreter.ReturnValue
+import com.github.aplanguage.aplanglite.interpreter.Structure
 import com.github.aplanguage.aplanglite.tokenizer.Token
 import com.github.aplanguage.aplanglite.tokenizer.ValueKeyword
 import com.github.aplanguage.aplanglite.utils.Area
@@ -51,9 +52,32 @@ sealed class Expression {
 
     data class ForStatement(
       val identifier: GriddedObject<Token.IdentifierToken>,
-      val expr: GriddedObject<Expression>,
+      val iterableExpr: GriddedObject<Expression>,
       val statement: GriddedObject<Expression>
-    ) : Statement()
+    ) : Statement() {
+      override fun run(interpreter: Interpreter, scope: Interpreter.Scope): ReturnValue {
+        val iterableValue = when (val expr = iterableExpr.obj) {
+          is BrokenExpression -> throw InterpreterException("Cannot execute broken at ${iterableExpr.area()}.")
+          else -> when (val iterableValue = interpreter.runExpression(scope, expr)) {
+            is ReturnValue.IterableValue -> iterableValue
+            else -> throw InterpreterException("No ${iterableExpr.obj.javaClass.simpleName} as iterable allowed at ${iterableExpr.area()}.")
+          }
+        }
+        for (obj in iterableValue.iterable) {
+          interpreter.runExpression(
+            Interpreter.Scope(
+              mutableMapOf(
+                identifier.obj.identifier to Structure.VarStructure(
+                  identifier.obj.identifier,
+                  null, null, obj
+                )
+              )
+            ), statement.obj
+          )
+        }
+        return ReturnValue.Unit
+      }
+    }
 
     data class ReturnStatement(val expr: GriddedObject<Expression>?) : Statement()
 

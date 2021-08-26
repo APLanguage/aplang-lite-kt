@@ -189,11 +189,12 @@ sealed class ReturnValue {
     }
   }
 
-  data class IterableValue(val iterable: Iterable<ReturnValue>) : ReturnValue() {
+  data class IterableValue(val iterable: Iterable<ReturnValue>) : ReturnValue(), Iterable<ReturnValue> {
     val iterator: Iterator<ReturnValue> = iterable.iterator()
 
     fun hasNext() = iterator.hasNext()
     fun advance() = iterator.next()
+    override fun iterator() = iterator
   }
 
   data class ObjectValue(val identifier: String, val fields: Map<String, ReturnValue>) : ReturnValue()
