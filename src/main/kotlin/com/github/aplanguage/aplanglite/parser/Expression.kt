@@ -91,7 +91,20 @@ sealed class Expression {
       }
     }
 
-    data class WhileStatement(val expr: GriddedObject<Expression>, val statement: GriddedObject<Expression>?) : Statement()
+    data class WhileStatement(val condition: GriddedObject<Expression>, val statement: GriddedObject<Expression>?) : Statement() {
+      override fun run(interpreter: Interpreter, scope: Interpreter.Scope): ReturnValue {
+        while (when (val expr = condition.obj) {
+            is BrokenExpression -> throw InterpreterException("Cannot execute broken at ${condition.area()}.")
+            is DataExpression -> expr.run(interpreter, scope).let {
+              if (it is ReturnValue.BooleanValue) it
+              else throw InterpreterException("Expected BooleanValue, got ${it.javaClass.simpleName} with value: $it")
+            }
+            else -> throw InterpreterException("No ${condition.obj.javaClass.simpleName} as condition allowed at ${condition.area()}.")
+          }.boolean
+        ) statement?.also { interpreter.runExpression(Interpreter.Scope(mutableMapOf(), scope), it.obj) }
+        return ReturnValue.Unit
+      }
+    }
 
     data class IfStatement(
       val condition: GriddedObject<Expression>,
