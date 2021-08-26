@@ -30,7 +30,7 @@ class Parser(val scanner: TokenScanner, val underliner: Underliner?) {
 
   fun declaration(): GriddedObject<Expression>? = class_decl() ?: fun_decl() ?: var_decl()
 
-  fun class_decl(): GriddedObject<Expression.ClassDeclaration>? {
+  fun class_decl(): GriddedObject<Expression.Declaration.ClassDeclaration>? {
     scanner.startSection()
     val classTk = scanner.consumeMatchingKeywordToken(Keyword.CLASS)
     if (classTk == null) {
@@ -54,7 +54,7 @@ class Parser(val scanner: TokenScanner, val underliner: Underliner?) {
     }
     return GriddedObject.of(
       classTk.startCoords(),
-      Expression.ClassDeclaration(identifier, superTypes, program),
+      Expression.Declaration.ClassDeclaration(identifier, superTypes, program),
       scanner.positionPreviousCoords().endCoords()
     )
   }
@@ -68,7 +68,7 @@ class Parser(val scanner: TokenScanner, val underliner: Underliner?) {
     }
     val identifier = expectIdentifier(scanner, "fun_decl, After fn")
     expectCodeToken(scanner, CodeToken.LEFT_PAREN, "fun_decl, opening paren")?.also { throw it }
-    val parameters = mutableMapOf<GriddedObject<Token.IdentifierToken>, GriddedObject<Expression.Type>>()
+    val parameters = mutableListOf<Pair<GriddedObject<Token.IdentifierToken>, GriddedObject<Expression.Type>>>()
     if (scanner.peekMatchingCodeToken(CodeToken.RIGHT_PAREN) == null) {
       functionParameterDeclaration(parameters, "After (")
       while (scanner.consumeMatchingCodeToken(CodeToken.COMMA) != null) {
@@ -90,19 +90,27 @@ class Parser(val scanner: TokenScanner, val underliner: Underliner?) {
         Expression.BrokenExpression(fnTk.startCoords().expandTo(scanner.positionPreviousCoords().endCoords())),
         scanner.positionPreviousCoords().endCoords()
       )
-    } else GriddedObject.of(fnTk.startCoords(), Expression.FunctionDeclaration(identifier, parameters, returnType, block), block.endCoords())
+    } else GriddedObject.of(
+      fnTk.startCoords(),
+      Expression.Declaration.FunctionDeclaration(identifier, parameters, returnType, block),
+      block.endCoords()
+    )
   }
 
   private fun functionParameterDeclaration(
-    parameters: MutableMap<GriddedObject<Token.IdentifierToken>, GriddedObject<Expression.Type>>,
+    parameters: MutableList<Pair<GriddedObject<Token.IdentifierToken>, GriddedObject<Expression.Type>>>,
     whenToDeclare: String
   ) {
     try {
       scanner.startSection()
       val parameterIdentifier = expectIdentifier(scanner, "fun_decl, $whenToDeclare")
       expectCodeToken(scanner, CodeToken.COLON, "fun_decl, parameter colon")?.also { throw it }
-      parameters[parameterIdentifier] =
-        type() ?: throw ParserException("Each parameter must have a type.")
+      parameters.add(
+        Pair(
+          parameterIdentifier,
+          type() ?: throw ParserException("Each parameter must have a type.")
+        )
+      )
       scanner.endSection()
     } catch (e: ParserException) {
       scanner.endSection(true)
@@ -120,7 +128,7 @@ class Parser(val scanner: TokenScanner, val underliner: Underliner?) {
   }
 
 
-  fun var_decl(): GriddedObject<Expression.VarDeclaration>? {
+  fun var_decl(): GriddedObject<Expression.Declaration.VarDeclaration>? {
     scanner.startSection()
     val varTk = scanner.consumeMatchingKeywordToken(Keyword.VAR)
     if (varTk == null) {
@@ -138,7 +146,11 @@ class Parser(val scanner: TokenScanner, val underliner: Underliner?) {
       throw ParserException("After a var declaration there must be an new-line. ${scanner.positionPreviousCoords().endCoords()}")
     }
     scanner.endSection()
-    return GriddedObject.of(varTk.startCoords(), Expression.VarDeclaration(identifier, type, expr), scanner.positionPreviousCoords().endCoords())
+    return GriddedObject.of(
+      varTk.startCoords(),
+      Expression.Declaration.VarDeclaration(identifier, type, expr),
+      scanner.positionPreviousCoords().endCoords()
+    )
   }
 
   fun use_decl(): GriddedObject<Expression>? {
@@ -186,7 +198,11 @@ class Parser(val scanner: TokenScanner, val underliner: Underliner?) {
         scanner.positionPreviousCoords().endCoords()
       )
     }
-    return GriddedObject.of(useTk.startCoords(), Expression.UseDeclaration(path, star != null, asOther), scanner.positionPreviousCoords().endCoords())
+    return GriddedObject.of(
+      useTk.startCoords(),
+      Expression.Declaration.UseDeclaration(path, star != null, asOther),
+      scanner.positionPreviousCoords().endCoords()
+    )
   }
 
   fun statement(): GriddedObject<Expression> =
@@ -206,7 +222,7 @@ class Parser(val scanner: TokenScanner, val underliner: Underliner?) {
     expectCodeToken(scanner, CodeToken.RIGHT_PAREN, "for_stmt, close paren")?.also { throw it }
     val statement = statement()
     scanner.endSection()
-    return GriddedObject.of(forTk.startCoords(), Expression.ForStatement(identifier, expr, statement), statement.endCoords())
+    return GriddedObject.of(forTk.startCoords(), Expression.Statement.ForStatement(identifier, expr, statement), statement.endCoords())
   }
 
   fun return_stmt(): GriddedObject<Expression>? {
@@ -224,7 +240,7 @@ class Parser(val scanner: TokenScanner, val underliner: Underliner?) {
       }
     }
     scanner.endSection()
-    return GriddedObject.of(returnTk.startCoords(), Expression.ReturnStatement(expr), scanner.positionCoords().endCoords())
+    return GriddedObject.of(returnTk.startCoords(), Expression.Statement.ReturnStatement(expr), scanner.positionCoords().endCoords())
   }
 
   fun break_stmt(): GriddedObject<Expression>? {
@@ -238,7 +254,7 @@ class Parser(val scanner: TokenScanner, val underliner: Underliner?) {
       throw ParserException("After a break statement there must be an new-line. at ${breakTk.endCoords()}")
     }
     scanner.endSection()
-    return GriddedObject.of(breakTk.startCoords(), Expression.BreakStatement(), scanner.positionCoords().endCoords())
+    return GriddedObject.of(breakTk.startCoords(), Expression.Statement.BreakStatement(), scanner.positionCoords().endCoords())
   }
 
   fun while_stmt(): GriddedObject<Expression>? {
@@ -256,7 +272,7 @@ class Parser(val scanner: TokenScanner, val underliner: Underliner?) {
       statement = statement()
     }
     scanner.endSection()
-    return GriddedObject.of(whileTk.startCoords(), Expression.WhileStatement(expr, statement), scanner.positionCoords().endCoords())
+    return GriddedObject.of(whileTk.startCoords(), Expression.Statement.WhileStatement(expr, statement), scanner.positionCoords().endCoords())
   }
 
   fun if_stmt(): GriddedObject<Expression>? {
@@ -277,7 +293,7 @@ class Parser(val scanner: TokenScanner, val underliner: Underliner?) {
     scanner.endSection()
     return GriddedObject.of(
       ifTk.startCoords(),
-      Expression.IfStatement(condition, thenStatement, elseStatement),
+      Expression.Statement.IfStatement(condition, thenStatement, elseStatement),
       scanner.positionPreviousCoords().endCoords()
     )
   }
@@ -307,7 +323,7 @@ class Parser(val scanner: TokenScanner, val underliner: Underliner?) {
       scanner.endSection(true)
       return if_expr()
     }
-    if (call.obj !is Expression.Primary.IdentifierExpression && call.obj !is Expression.Call) {
+    if (call.obj !is Expression.DataExpression.Primary.IdentifierExpression && call.obj !is Expression.DataExpression.Call) {
       throw ParserException(
         "For the left-side of the assignment it only can be a Call or an Identifier. ${
           scanner.positionPreviousCoords().endCoords()
@@ -316,7 +332,7 @@ class Parser(val scanner: TokenScanner, val underliner: Underliner?) {
     }
     return GriddedObject.of(
       call.startCoords(),
-      Expression.Assignment(call, tk, assignment()),
+      Expression.DataExpression.Assignment(call, tk, assignment()),
       scanner.positionPreviousCoords().endCoords()
     ).also { scanner.endSection() }
   }
@@ -337,7 +353,7 @@ class Parser(val scanner: TokenScanner, val underliner: Underliner?) {
     scanner.endSection()
     return GriddedObject.of(
       ifTk.startCoords(),
-      Expression.IfExpression(condition, thenExpr, elseExpr),
+      Expression.DataExpression.IfExpression(condition, thenExpr, elseExpr),
       scanner.positionPreviousCoords().endCoords()
     )
   }
@@ -352,7 +368,7 @@ class Parser(val scanner: TokenScanner, val underliner: Underliner?) {
     return if (operations.isEmpty()) nextExpr
     else GriddedObject.of(
       nextExpr.startCoords(),
-      Expression.BinaryOperation(nextExpr, operations),
+      Expression.DataExpression.BinaryOperation(nextExpr, operations),
       scanner.positionPreviousCoords().endCoords()
     )
   }
@@ -377,7 +393,11 @@ class Parser(val scanner: TokenScanner, val underliner: Underliner?) {
   fun unary_left(): GriddedObject<Expression> {
     scanner.startSection()
     val tk = scanner.consumeMatchingCodeTokens(arrayOf(CodeToken.BANG, CodeToken.TILDE)) ?: return call().also { scanner.endSection() }
-    return GriddedObject.of(tk.startCoords(), Expression.UnaryOperation(tk, unary_left()), scanner.positionPreviousCoords().endCoords())
+    return GriddedObject.of(
+      tk.startCoords(),
+      Expression.DataExpression.UnaryOperation(tk, unary_left()),
+      scanner.positionPreviousCoords().endCoords()
+    )
       .also { scanner.endSection() }
   }
 
@@ -395,7 +415,11 @@ class Parser(val scanner: TokenScanner, val underliner: Underliner?) {
       )
     }
     if (invocations.isEmpty() && calls.isEmpty()) return primary
-    return GriddedObject.of(primary.startCoords(), Expression.Call(primary, invocations, calls), scanner.positionPreviousCoords().endCoords())
+    return GriddedObject.of(
+      primary.startCoords(),
+      Expression.DataExpression.Call(primary, invocations, calls),
+      scanner.positionPreviousCoords().endCoords()
+    )
   }
 
   fun invocation(): GriddedObject<Expression.Invocation>? {
@@ -417,8 +441,8 @@ class Parser(val scanner: TokenScanner, val underliner: Underliner?) {
   fun primary(): GriddedObject<Expression> {
     val tk = scanner.consume() ?: throw ParserException("No EOF expected!")
     return when (tk.obj) {
-      is Token.IdentifierToken -> tk.repack(Expression.Primary.IdentifierExpression(tk.obj as Token.IdentifierToken))
-      is Token.ValueToken -> tk.repack(Expression.Primary.DirectValue(tk.obj as Token.ValueToken))
+      is Token.IdentifierToken -> tk.repack(Expression.DataExpression.Primary.IdentifierExpression(tk.obj as Token.IdentifierToken))
+      is Token.ValueToken -> tk.repack(Expression.DataExpression.Primary.DirectValue(tk.obj as Token.ValueToken))
       is Token.SignToken -> {
         if ((tk.obj as Token.SignToken).codeToken == CodeToken.LEFT_PAREN)
           expression().also { expectCodeToken(scanner, CodeToken.RIGHT_PAREN, "primary, (expression) close paren")?.also { throw it } }

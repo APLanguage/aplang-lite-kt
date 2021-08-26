@@ -46,9 +46,7 @@ object ASTPrinter {
         last()[last().size - 1] = last().last() + "]"
       }.flatten()
       is Pair<*, *> -> listOf("(", *convert(any.first).map { "  $it" }.toTypedArray(), *convert(any.second).map { "  $it" }.toTypedArray(), ")")
-      is Expression -> objToLines(convertObjWithFields(any))
-      is Token -> objToLines(convertObjWithFields(any))
-      is Expression.Invocation -> objToLines(convertObjWithFields(any))
+      is Expression, is Token, is Expression.Invocation, is Expression.Path -> objToLines(convertObjWithFields(any))
       is BigInteger -> listOf(any.toString())
       is Boolean -> listOf(any.toString())
       is Enum<*> -> listOf(any.name)
@@ -62,7 +60,7 @@ object ASTPrinter {
     }
   }
 
-  private fun convertObjWithFields(any: Any): Pair<String, Map<String, Any>> {
+  fun convertObjWithFields(any: Any): Pair<String, Map<String, Any>> {
     return any.javaClass.declaredFields.mapNotNull {
       it.trySetAccessible()
       val obj = it.get(any) ?: return@mapNotNull null
@@ -76,7 +74,7 @@ object ASTPrinter {
     }.let { Pair(any.javaClass.simpleName, it) }
   }
 
-  private fun objToLines(obj: Pair<String, Map<String, Any>>): List<String> {
+  fun objToLines(obj: Pair<String, Map<String, Any>>): List<String> {
     val fields = convert(if (obj.second.size == 1) obj.second.values.first() else obj.second)
     return if (fields.isEmpty()) listOf(obj.first)
     else if (fields.size == 1) listOf(obj.first + "(" + fields.first() + ")")
