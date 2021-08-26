@@ -197,7 +197,15 @@ sealed class Expression {
     data class UnaryOperation(
       val operation: GriddedObject<Token.SignToken>,
       val expr: GriddedObject<Expression>
-    ) : DataExpression()
+    ) : DataExpression() {
+      override fun run(interpreter: Interpreter, scope: Interpreter.Scope): ReturnValue {
+        val value = interpreter.runExpression(scope, expr.obj)
+        return if (value.supportUnaryOperation(operation.obj.codeToken)) value.applyUnaryOp(operation.obj.codeToken).also {
+          if (it !is ReturnValue.Unit) throw InterpreterException("Unsupported Unary Operation ${operation.obj.codeToken.name} for ${value.javaClass.simpleName} at ${expr.area()}.")
+        }
+        else throw InterpreterException("Unsupported Unary Operation ${operation.obj.codeToken.name} for ${value.javaClass.simpleName} at ${expr.area()}.")
+      }
+    }
 
     data class Call(
       val primary: GriddedObject<Expression>,
@@ -226,6 +234,7 @@ sealed class Expression {
           }
         }
       }
+
       data class IdentifierExpression(val identifier: String) : Primary()
     }
   }

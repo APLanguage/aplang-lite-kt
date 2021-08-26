@@ -10,6 +10,10 @@ sealed class ReturnValue {
 
   open fun applyBinaryOp(token: CodeToken, second: ReturnValue): ReturnValue = ReturnValue.Unit
 
+  open fun supportUnaryOperation(token: CodeToken): Boolean = false
+
+  open fun applyUnaryOp(token: CodeToken): ReturnValue = ReturnValue.Unit
+
   object Unit : ReturnValue() {
     override fun toString() = "Unit"
   }
@@ -174,6 +178,10 @@ sealed class ReturnValue {
           else -> throw InterpreterException("Not supported ${token.name}")
         }
       }
+
+      override fun supportUnaryOperation(token: CodeToken) = token == CodeToken.TILDE
+
+      override fun applyUnaryOp(token: CodeToken) = if (token == CodeToken.TILDE) IntegerNumber(number.inv()) else Unit
     }
   }
 
@@ -212,5 +220,9 @@ sealed class ReturnValue {
         else -> throw InterpreterException("Not supported ${token.name}")
       }
     }
+
+    override fun supportUnaryOperation(token: CodeToken) = token == CodeToken.BANG
+
+    override fun applyUnaryOp(token: CodeToken) = if (token == CodeToken.BANG) BooleanValue(!boolean) else Unit
   }
 }
