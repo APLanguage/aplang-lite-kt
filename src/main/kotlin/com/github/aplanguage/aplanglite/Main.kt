@@ -1,5 +1,6 @@
 package com.github.aplanguage.aplanglite
 
+import com.github.aplanguage.aplanglite.interpreter.Interpreter
 import com.github.aplanguage.aplanglite.parser.Parser
 import com.github.aplanguage.aplanglite.tokenizer.ScanResult
 import com.github.aplanguage.aplanglite.tokenizer.scan
@@ -50,7 +51,9 @@ object Main {
               Parser(TokenScanner(indexedScan.value.second.tokens), Underliner(Files.readAllLines(indexedScan.value.first.toPath())))
 //            println(prettyPrintAST(program))
 ////            println()
-            ASTPrinter.print(parser.program())
+            val program = parser.program()
+            ASTPrinter.print(program)
+
             if (parser.errors().isNotEmpty()) parser.errors().forEach {
               parser.underliner?.underline(it.area)
               it.message?.also(::println)
@@ -58,11 +61,18 @@ object Main {
               for (element in it.exception.stackTrace) {
                 println("  at ${element.className}.${element.methodName}(${element.fileName}:${element.lineNumber})")
               }
+            } else if (program != null) {
+              println("Structure AST:")
+              ASTPrinter.print(Interpreter().forgeStructure(program.obj))
+              println("Executing...")
+              Interpreter().compileAndRun(program.obj)
             }
+
 //            val underliner = Underliner(Files.readAllLines(indexedScan.value.first.toPath()))
 //            program?.obj?.declarations?.forEach { underliner.underline(it.startCoords(), it.endCoords()) }
           }
           println("-------------------------------------")
+
         }
       } else {
         println("Scanning 1 file: " + args[0])

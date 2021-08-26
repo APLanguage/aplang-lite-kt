@@ -6,6 +6,7 @@ import com.github.aplanguage.aplanglite.interpreter.ReturnValue
 import com.github.aplanguage.aplanglite.interpreter.Structure
 import com.github.aplanguage.aplanglite.tokenizer.Token
 import com.github.aplanguage.aplanglite.tokenizer.ValueKeyword
+import com.github.aplanguage.aplanglite.utils.ASTPrinter
 import com.github.aplanguage.aplanglite.utils.Area
 import com.github.aplanguage.aplanglite.utils.GriddedObject
 import java.math.BigDecimal
@@ -18,8 +19,20 @@ sealed class Expression {
   data class Type(val path: Path)
 
   sealed class Invocation {
-    data class FunctionCall(val arguments: List<GriddedObject<Expression>>) : Invocation()
-    data class ArrayCall(val expr: GriddedObject<Expression>) : Invocation()
+
+    abstract fun call(callableValue: ReturnValue.CallableValue, scope: Interpreter.Scope, interpreter: Interpreter): ReturnValue
+
+    data class FunctionCall(val arguments: List<GriddedObject<Expression>>) : Invocation() {
+      override fun call(callableValue: ReturnValue.CallableValue, scope: Interpreter.Scope, interpreter: Interpreter): ReturnValue {
+        return callableValue.callable(arguments.map { interpreter.runExpression(scope, it.obj) }.toTypedArray())
+      }
+    }
+
+    data class ArrayCall(val expr: GriddedObject<Expression>) : Invocation() {
+      override fun call(callableValue: ReturnValue.CallableValue, scope: Interpreter.Scope, interpreter: Interpreter): ReturnValue {
+        TODO("Not yet implemented")
+      }
+    }
   }
 
   sealed class Declaration : Expression() {
@@ -57,10 +70,9 @@ sealed class Expression {
     ) : Statement() {
       override fun run(interpreter: Interpreter, scope: Interpreter.Scope): ReturnValue {
         val iterableValue = when (val expr = iterableExpr.obj) {
-          is BrokenExpression -> throw InterpreterException("Cannot execute broken at ${iterableExpr.area()}.")
           else -> when (val iterableValue = interpreter.runExpression(scope, expr)) {
             is ReturnValue.IterableValue -> iterableValue
-            else -> throw InterpreterException("No ${iterableExpr.obj.javaClass.simpleName} as iterable allowed at ${iterableExpr.area()}.")
+            else -> throw InterpreterException("No ${iterableExpr.obj.javaClass.simpleName} (${iterableValue.javaClass.simpleName}) as iterable allowed at ${iterableExpr.area()}.")
           }
         }
         for (obj in iterableValue.iterable) {
@@ -74,7 +86,7 @@ sealed class Expression {
                   identifier.obj.identifier,
                   null, null, obj
                 )
-              )
+              ), scope
             ), stmtObj
           ).also { if (it is ReturnValue.TriggeredReturn) return it }
         }
@@ -82,7 +94,11 @@ sealed class Expression {
       }
     }
 
-    data class ReturnStatement(val expr: GriddedObject<Expression>?) : Statement()
+    data class ReturnStatement(val expr: GriddedObject<Expression>?) : Statement() {
+      override fun run(interpreter: Interpreter, scope: Interpreter.Scope): ReturnValue {
+        return ReturnValue.TriggeredReturn(expr?.obj?.let { interpreter.runExpression(scope, it) })
+      }
+    }
 
     class BreakStatement : Statement() {
       override fun equals(other: Any?): Boolean {
@@ -97,7 +113,6 @@ sealed class Expression {
     data class WhileStatement(val condition: GriddedObject<Expression>, val statement: GriddedObject<Expression>?) : Statement() {
       override fun run(interpreter: Interpreter, scope: Interpreter.Scope): ReturnValue {
         while (when (val expr = condition.obj) {
-            is BrokenExpression -> throw InterpreterException("Cannot execute broken at ${condition.area()}.")
             is DataExpression -> expr.run(interpreter, scope).let {
               if (it is ReturnValue.BooleanValue) it
               else throw InterpreterException("Expected BooleanValue, got ${it.javaClass.simpleName} with value: $it")
@@ -123,7 +138,6 @@ sealed class Expression {
     ) : Statement() {
       override fun run(interpreter: Interpreter, scope: Interpreter.Scope): ReturnValue {
         val conditionValue: ReturnValue.BooleanValue = when (val expr = condition.obj) {
-          is BrokenExpression -> throw InterpreterException("Cannot execute broken at ${condition.area()}.")
           is DataExpression -> expr.run(interpreter, scope).let {
             if (it is ReturnValue.BooleanValue) it
             else throw InterpreterException("Expected BooleanValue, got ${it.javaClass.simpleName} with value: $it")
@@ -221,7 +235,22 @@ sealed class Expression {
       val primary: GriddedObject<Expression>,
       val invocations: List<GriddedObject<Invocation>>,
       val calls: List<Pair<GriddedObject<GriddedObject<Token.IdentifierToken>>, List<GriddedObject<Invocation>>>>
-    ) : DataExpression()
+    ) : DataExpression() {
+      override fun run(interpreter: Interpreter, scope: Interpreter.Scope): ReturnValue {
+        val prim = interpreter.runExpression(scope, primary.obj)
+        var ret: ReturnValue = ReturnValue.Unit
+        if (prim is ReturnValue.CallableValue) {
+          if (invocations.isNotEmpty()) {
+            ret = invocations.first().obj.call(prim, scope, interpreter)
+          } else {
+            TODO()
+          }
+        } else {
+          TODO(prim.javaClass.simpleName)
+        }
+        return ret
+      }
+    }
 
     sealed class Primary : DataExpression() {
       data class DirectValue(val value: Token.ValueToken) : Primary() {
@@ -245,7 +274,13 @@ sealed class Expression {
         }
       }
 
-      data class IdentifierExpression(val identifier: String) : Primary()
+      data class IdentifierExpression(val identifier: String) : Primary() {
+        override fun run(interpreter: Interpreter, scope: Interpreter.Scope): ReturnValue {
+          return scope.findField(identifier)?.let {
+            it.value ?: it.expression?.let { interpreter.runExpression(scope, it) }
+          } ?: throw InterpreterException("No $identifier found in scope: " + ASTPrinter.objToLines(ASTPrinter.convertObjWithFields(scope)).joinToString("\n"))
+        }
+      }
     }
   }
 
