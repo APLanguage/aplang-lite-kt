@@ -75,7 +75,7 @@ sealed class Expression {
       override fun run(interpreter: Interpreter, scope: Interpreter.Scope): ReturnValue {
         val conditionValue: ReturnValue.BooleanValue = when (val expr = condition.obj) {
           is BrokenExpression -> throw InterpreterException("Cannot execute broken at ${condition.area()}.")
-          is DataExpression -> expr.run(scope).let {
+          is DataExpression -> expr.run(interpreter, scope).let {
             if (it is ReturnValue.BooleanValue) it
             else throw InterpreterException("Expected BooleanValue, got ${it.javaClass.simpleName} with value: $it")
           }
@@ -104,7 +104,7 @@ sealed class Expression {
 
   sealed class DataExpression : Expression() {
 
-    open fun run(scope: Interpreter.Scope): ReturnValue = ReturnValue.Unit
+    open fun run(interpreter: Interpreter, scope: Interpreter.Scope): ReturnValue = ReturnValue.Unit
 
     data class Assignment(
       val call: GriddedObject<Expression>,
@@ -120,8 +120,28 @@ sealed class Expression {
 
     data class BinaryOperation(
       val first: GriddedObject<Expression>,
-      val ors: List<Pair<GriddedObject<Token.SignToken>, GriddedObject<Expression>>>
-    ) : DataExpression()
+      val operations: List<Pair<GriddedObject<Token.SignToken>, GriddedObject<Expression>>>
+    ) : DataExpression() {
+      override fun run(interpreter: Interpreter, scope: Interpreter.Scope): ReturnValue {
+        val firstValue = interpreter.runExpression(scope, first.obj)
+        return operations.fold(first.repack(firstValue)) { value, pair ->
+          if (!value.obj.supportBinaryOperation(pair.first.obj.codeToken)) {
+            throw InterpreterException("Binary Operation ${pair.first.obj.codeToken.name} (at ${pair.first.area()}) not supported on ${value.obj.javaClass.simpleName} at ${value.area()}.")
+          }
+          val secondValue = interpreter.runExpression(scope, pair.second.obj)
+          if (!secondValue.supportBinaryOperation(pair.first.obj.codeToken)) {
+            throw InterpreterException("Binary Operation ${pair.first.obj.codeToken.name} (at ${pair.first.area()}) not supported on ${secondValue.javaClass.simpleName} at ${pair.second.area()}.")
+          }
+          val retVal = value.obj.applyBinaryOp(pair.first.obj.codeToken, secondValue)
+          if (retVal == ReturnValue.Unit) throw InterpreterException(
+            "Binary Operation ${pair.first.obj.codeToken.name} (at ${pair.first.area()})" +
+                    " not supported on ${value.obj.javaClass.simpleName} at ${value.area()} (Left) and " +
+                    " ${secondValue.javaClass.simpleName} at ${pair.second.area()} (Right)."
+          )
+          pair.second.repack(retVal)
+        }.obj
+      }
+    }
 
     data class UnaryOperation(
       val operation: GriddedObject<Token.SignToken>,
