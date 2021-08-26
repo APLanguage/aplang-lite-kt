@@ -1,5 +1,7 @@
 package com.github.aplanguage.aplanglite.parser
 
+import com.github.aplanguage.aplanglite.interpreter.Interpreter
+import com.github.aplanguage.aplanglite.interpreter.ReturnValue
 import com.github.aplanguage.aplanglite.tokenizer.Token
 import com.github.aplanguage.aplanglite.utils.Area
 import com.github.aplanguage.aplanglite.utils.GriddedObject
@@ -41,6 +43,9 @@ sealed class Expression {
   }
 
   sealed class Statement : Expression() {
+
+    open fun run(interpreter: Interpreter, scope: Interpreter.Scope): ReturnValue = ReturnValue.Unit
+
     data class ForStatement(
       val identifier: GriddedObject<Token.IdentifierToken>,
       val expr: GriddedObject<Expression>,
@@ -71,6 +76,9 @@ sealed class Expression {
   data class Block(val statements: List<GriddedObject<Expression>>) : Expression()
 
   sealed class DataExpression : Expression() {
+
+    open fun run(scope: Interpreter.Scope): ReturnValue = ReturnValue.Unit
+
     data class Assignment(
       val call: GriddedObject<Expression>,
       val op: GriddedObject<Token.SignToken>,
