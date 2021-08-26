@@ -14,6 +14,9 @@ sealed class ReturnValue {
     override fun toString() = "Unit"
   }
 
+  object Null : ReturnValue() {
+    override fun toString() = "Null"
+  }
 
   sealed class Number : ReturnValue() {
     data class FloatNumber(val number: Double) : Number() {

@@ -441,7 +441,7 @@ class Parser(val scanner: TokenScanner, val underliner: Underliner?) {
   fun primary(): GriddedObject<Expression> {
     val tk = scanner.consume() ?: throw ParserException("No EOF expected!")
     return when (tk.obj) {
-      is Token.IdentifierToken -> tk.repack(Expression.DataExpression.Primary.IdentifierExpression(tk.obj as Token.IdentifierToken))
+      is Token.IdentifierToken -> tk.repack(Expression.DataExpression.Primary.IdentifierExpression((tk.obj as Token.IdentifierToken).identifier))
       is Token.ValueToken -> tk.repack(Expression.DataExpression.Primary.DirectValue(tk.obj as Token.ValueToken))
       is Token.SignToken -> {
         if ((tk.obj as Token.SignToken).codeToken == CodeToken.LEFT_PAREN)

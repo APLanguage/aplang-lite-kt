@@ -4,8 +4,10 @@ import com.github.aplanguage.aplanglite.interpreter.Interpreter
 import com.github.aplanguage.aplanglite.interpreter.InterpreterException
 import com.github.aplanguage.aplanglite.interpreter.ReturnValue
 import com.github.aplanguage.aplanglite.tokenizer.Token
+import com.github.aplanguage.aplanglite.tokenizer.ValueKeyword
 import com.github.aplanguage.aplanglite.utils.Area
 import com.github.aplanguage.aplanglite.utils.GriddedObject
+import java.math.BigDecimal
 
 sealed class Expression {
   data class Program(val uses: List<GriddedObject<Expression>>, val declarations: List<GriddedObject<Expression>>) : Expression()
@@ -167,8 +169,27 @@ sealed class Expression {
     ) : DataExpression()
 
     sealed class Primary : DataExpression() {
-      data class DirectValue(val value: Token.ValueToken) : Primary()
-      data class IdentifierExpression(val identifier: Token.IdentifierToken) : Primary()
+      data class DirectValue(val value: Token.ValueToken) : Primary() {
+        override fun run(interpreter: Interpreter, scope: Interpreter.Scope): ReturnValue {
+          return when (value) {
+            is Token.ValueToken.LiteralToken -> when (value) {
+              is Token.ValueToken.LiteralToken.FloatToken -> ReturnValue.Number.FloatNumber(
+                BigDecimal.valueOf(value.first.toLong()).add(BigDecimal.valueOf(value.second.toLong()).movePointLeft(value.second.toString().length))
+                  .toDouble()
+              )
+              is Token.ValueToken.LiteralToken.CharToken -> TODO()
+              is Token.ValueToken.LiteralToken.IntegerToken -> ReturnValue.Number.IntegerNumber(value.int.toLong())
+              is Token.ValueToken.LiteralToken.StringToken -> ReturnValue.StringValue(value.string)
+            }
+            is Token.ValueToken.ValueKeywordToken -> when (value.keyword) {
+              ValueKeyword.TRUE -> ReturnValue.BooleanValue(true)
+              ValueKeyword.FALSE -> ReturnValue.BooleanValue(false)
+              ValueKeyword.NULL -> ReturnValue.Null
+            }
+          }
+        }
+      }
+      data class IdentifierExpression(val identifier: String) : Primary()
     }
   }
 
