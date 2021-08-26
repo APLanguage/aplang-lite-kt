@@ -64,6 +64,9 @@ sealed class Expression {
           }
         }
         for (obj in iterableValue.iterable) {
+          val stmtObj = statement.obj
+          if (stmtObj is BreakStatement) return ReturnValue.Unit
+          if (stmtObj is ReturnStatement) return ReturnValue.TriggeredReturn(stmtObj.expr?.let { interpreter.runExpression(scope, it.obj) })
           interpreter.runExpression(
             Interpreter.Scope(
               mutableMapOf(
@@ -72,8 +75,8 @@ sealed class Expression {
                   null, null, obj
                 )
               )
-            ), statement.obj
-          )
+            ), stmtObj
+          ).also { if (it is ReturnValue.TriggeredReturn) return it }
         }
         return ReturnValue.Unit
       }
@@ -101,7 +104,14 @@ sealed class Expression {
             }
             else -> throw InterpreterException("No ${condition.obj.javaClass.simpleName} as condition allowed at ${condition.area()}.")
           }.boolean
-        ) statement?.also { interpreter.runExpression(Interpreter.Scope(mutableMapOf(), scope), it.obj) }
+        ) {
+          if (statement != null) {
+            val stmtObj = statement.obj
+            if (stmtObj is BreakStatement) return ReturnValue.Unit
+            if (stmtObj is ReturnStatement) return ReturnValue.TriggeredReturn(stmtObj.expr?.let { interpreter.runExpression(scope, it.obj) })
+            interpreter.runExpression(Interpreter.Scope(mutableMapOf(), scope), stmtObj).also { if (it is ReturnValue.TriggeredReturn) return it }
+          }
+        }
         return ReturnValue.Unit
       }
     }
@@ -121,9 +131,9 @@ sealed class Expression {
           else -> throw InterpreterException("No ${condition.obj.javaClass.simpleName} as condition allowed at ${condition.area()}.")
         }
         if (conditionValue.boolean) {
-          interpreter.runExpression(Interpreter.Scope(mutableMapOf(), scope), thenStmt.obj)
+          interpreter.runExpression(Interpreter.Scope(mutableMapOf(), scope), thenStmt.obj).also { if (it is ReturnValue.TriggeredReturn) return it }
         } else if (elseStmt != null) {
-          interpreter.runExpression(Interpreter.Scope(mutableMapOf(), scope), elseStmt.obj)
+          interpreter.runExpression(Interpreter.Scope(mutableMapOf(), scope), elseStmt.obj).also { if (it is ReturnValue.TriggeredReturn) return it }
         }
         return ReturnValue.Unit
       }
@@ -135,7 +145,7 @@ sealed class Expression {
       var returnValue: ReturnValue = ReturnValue.Unit
       val blockScope = Interpreter.Scope(mutableMapOf(), scope)
       for (statement in statements) {
-        returnValue = interpreter.runExpression(blockScope, statement.obj)
+        returnValue = interpreter.runExpression(blockScope, statement.obj).also { if (it is ReturnValue.TriggeredReturn) return it }
       }
       return returnValue
     }

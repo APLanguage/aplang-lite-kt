@@ -22,6 +22,8 @@ sealed class ReturnValue {
     override fun toString() = "Null"
   }
 
+  data class TriggeredReturn(val returnValue: ReturnValue?) : ReturnValue()
+
   sealed class Number : ReturnValue() {
     data class FloatNumber(val number: Double) : Number() {
       override fun supportBinaryOperation(token: CodeToken) = token in arrayOf(
