@@ -1,6 +1,7 @@
 package com.github.aplanguage.aplanglite.parser
 
 import com.github.aplanguage.aplanglite.interpreter.Interpreter
+import com.github.aplanguage.aplanglite.interpreter.InterpreterException
 import com.github.aplanguage.aplanglite.interpreter.ReturnValue
 import com.github.aplanguage.aplanglite.tokenizer.Token
 import com.github.aplanguage.aplanglite.utils.Area
@@ -70,7 +71,24 @@ sealed class Expression {
       val condition: GriddedObject<Expression>,
       val thenStmt: GriddedObject<Expression>,
       val elseStmt: GriddedObject<Expression>?
-    ) : Statement()
+    ) : Statement() {
+      override fun run(interpreter: Interpreter, scope: Interpreter.Scope): ReturnValue {
+        val conditionValue: ReturnValue.BooleanValue = when (val expr = condition.obj) {
+          is BrokenExpression -> throw InterpreterException("Cannot execute broken at ${condition.area()}.")
+          is DataExpression -> expr.run(scope).let {
+            if (it is ReturnValue.BooleanValue) it
+            else throw InterpreterException("Expected BooleanValue, got ${it.javaClass.simpleName} with value: $it")
+          }
+          else -> throw InterpreterException("No ${condition.obj.javaClass.simpleName} as condition allowed at ${condition.area()}.")
+        }
+        if (conditionValue.boolean) {
+          interpreter.runExpression(Interpreter.Scope(mutableMapOf(), scope), thenStmt.obj)
+        } else if (elseStmt != null) {
+          interpreter.runExpression(Interpreter.Scope(mutableMapOf(), scope), elseStmt.obj)
+        }
+        return ReturnValue.Unit
+      }
+    }
   }
 
   data class Block(val statements: List<GriddedObject<Expression>>) : Expression()
