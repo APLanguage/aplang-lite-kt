@@ -24,7 +24,7 @@ sealed class Expression {
 
     data class FunctionCall(val arguments: List<GriddedObject<Expression>>) : Invocation() {
       override fun call(callableValue: ReturnValue.CallableValue, scope: Interpreter.Scope, interpreter: Interpreter): ReturnValue {
-        return callableValue.callable(arguments.map { interpreter.runExpression(scope, it.obj) }.toTypedArray())
+        return  callableValue.callable(arguments.map { interpreter.runExpression(scope, it.obj) }.toTypedArray())
       }
     }
 
@@ -86,7 +86,7 @@ sealed class Expression {
                   identifier.obj.identifier,
                   null, null, obj
                 )
-              ), scope
+              ), mapOf(), scope
             ), stmtObj
           ).also { if (it is ReturnValue.TriggeredReturn) return it }
         }
@@ -124,7 +124,8 @@ sealed class Expression {
             val stmtObj = statement.obj
             if (stmtObj is BreakStatement) return ReturnValue.Unit
             if (stmtObj is ReturnStatement) return ReturnValue.TriggeredReturn(stmtObj.expr?.let { interpreter.runExpression(scope, it.obj) })
-            interpreter.runExpression(Interpreter.Scope(mutableMapOf(), scope), stmtObj).also { if (it is ReturnValue.TriggeredReturn) return it }
+            interpreter.runExpression(Interpreter.Scope(mutableMapOf(), mapOf(), scope), stmtObj)
+              .also { if (it is ReturnValue.TriggeredReturn) return it }
           }
         }
         return ReturnValue.Unit
@@ -145,9 +146,11 @@ sealed class Expression {
           else -> throw InterpreterException("No ${condition.obj.javaClass.simpleName} as condition allowed at ${condition.area()}.")
         }
         if (conditionValue.boolean) {
-          interpreter.runExpression(Interpreter.Scope(mutableMapOf(), scope), thenStmt.obj).also { if (it is ReturnValue.TriggeredReturn) return it }
+          interpreter.runExpression(Interpreter.Scope(mutableMapOf(), mapOf(), scope), thenStmt.obj)
+            .also { if (it is ReturnValue.TriggeredReturn) return it }
         } else if (elseStmt != null) {
-          interpreter.runExpression(Interpreter.Scope(mutableMapOf(), scope), elseStmt.obj).also { if (it is ReturnValue.TriggeredReturn) return it }
+          interpreter.runExpression(Interpreter.Scope(mutableMapOf(), mapOf(), scope), elseStmt.obj)
+            .also { if (it is ReturnValue.TriggeredReturn) return it }
         }
         return ReturnValue.Unit
       }
@@ -157,7 +160,7 @@ sealed class Expression {
   data class Block(val statements: List<GriddedObject<Expression>>) : Expression() {
     fun run(interpreter: Interpreter, scope: Interpreter.Scope): ReturnValue {
       var returnValue: ReturnValue = ReturnValue.Unit
-      val blockScope = Interpreter.Scope(mutableMapOf(), scope)
+      val blockScope = Interpreter.Scope(mutableMapOf(), mapOf(), scope)
       for (statement in statements) {
         returnValue = interpreter.runExpression(blockScope, statement.obj).also { if (it is ReturnValue.TriggeredReturn) return it }
       }
@@ -189,7 +192,10 @@ sealed class Expression {
           }
           else -> throw InterpreterException("No ${condition.obj.javaClass.simpleName} as condition allowed at ${condition.area()}.")
         }
-        return interpreter.runExpression(Interpreter.Scope(mutableMapOf(), scope), if (conditionValue.boolean) thenExpr.obj else elseExpr.obj)
+        return interpreter.runExpression(
+          Interpreter.Scope(mutableMapOf(), mapOf(), scope),
+          if (conditionValue.boolean) thenExpr.obj else elseExpr.obj
+        )
       }
     }
 
@@ -237,16 +243,17 @@ sealed class Expression {
       val calls: List<Pair<GriddedObject<GriddedObject<Token.IdentifierToken>>, List<GriddedObject<Invocation>>>>
     ) : DataExpression() {
       override fun run(interpreter: Interpreter, scope: Interpreter.Scope): ReturnValue {
-        val prim = interpreter.runExpression(scope, primary.obj)
-        var ret: ReturnValue = ReturnValue.Unit
-        if (prim is ReturnValue.CallableValue) {
-          if (invocations.isNotEmpty()) {
-            ret = invocations.first().obj.call(prim, scope, interpreter)
-          } else {
-            TODO()
+        var ret: ReturnValue = interpreter.runExpression(scope, primary.obj)
+        if (invocations.isNotEmpty()) {
+          ret = invocations.fold(ret) { retVal, invoc ->
+            when (retVal) {
+              is ReturnValue.CallableValue -> {
+                val invocation = invocations.first()
+                invocation.obj.call(retVal, scope, interpreter)
+              }
+              else -> throw InterpreterException("${retVal.javaClass.simpleName} is not callable for ${invoc.area()}.")
+            }
           }
-        } else {
-          TODO(prim.javaClass.simpleName)
         }
         return ret
       }
@@ -278,7 +285,9 @@ sealed class Expression {
         override fun run(interpreter: Interpreter, scope: Interpreter.Scope): ReturnValue {
           return scope.findField(identifier)?.let {
             it.value ?: it.expression?.let { interpreter.runExpression(scope, it) }
-          } ?: throw InterpreterException("No $identifier found in scope: " + ASTPrinter.objToLines(ASTPrinter.convertObjWithFields(scope)).joinToString("\n"))
+          } ?: scope.findCallable(identifier) ?: throw InterpreterException(
+            "No $identifier found in scope: " + ASTPrinter.objToLines(ASTPrinter.convertObjWithFields(scope)).joinToString("\n")
+          )
         }
       }
     }

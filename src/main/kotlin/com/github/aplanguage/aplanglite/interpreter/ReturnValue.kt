@@ -1,6 +1,7 @@
 package com.github.aplanguage.aplanglite.interpreter
 
 import com.github.aplanguage.aplanglite.tokenizer.CodeToken
+import java.lang.invoke.MethodHandle
 import java.math.BigInteger
 import kotlin.math.pow
 
@@ -242,5 +243,42 @@ sealed class ReturnValue {
     override fun asString() = boolean.toString()
   }
 
-  data class CallableValue(val callable: (Array<ReturnValue>) -> ReturnValue) : ReturnValue()
+  open class CallableValue(val callable: (Array<ReturnValue>) -> ReturnValue) : ReturnValue() {
+    data class CallableFunctionValue(
+      val identifier: String,
+      val method: MethodHandle
+    ) : CallableValue({
+      val ret = if (method.type().parameterCount() == 1 && method.type().parameterType(0).isArray)
+        method.invoke(it)
+      else {
+        if (method.type().parameterCount() != it.size) throw InterpreterException(
+          "Wrong argument count passed in ${identifier}(${
+            method.type().parameterArray().joinToString(", ") { it.simpleName }
+          })${method.type().returnType().simpleName}, expected ${method.type().parameterCount()} got ${it.size}."
+        ) else if (!method.type().parameterArray().zip(it).fold(true) { matches, pair ->
+            matches && pair.first.isInstance(pair.second)
+          }) {
+          throw InterpreterException(
+            "Passed wrong argument types in ${identifier}(${
+              method.type().parameterArray().joinToString(", ") { it.simpleName }
+            })${method.type().returnType().simpleName}, got ${it.map { it.javaClass.simpleName }.toString()}."
+          )
+        }
+        method.invokeWithArguments(it.toList())
+      }
+      if (ret !is ReturnValue) ReturnValue.Unit
+      else ret
+    }) {
+
+      fun supportTypes(arguments: Array<ReturnValue>): Boolean {
+        return rightAmount(arguments.size) && method.type().parameterArray().zip(arguments).fold(true) { matches, pair ->
+          matches && pair.first.isInstance(pair.second)
+        }
+      }
+
+      fun rightAmount(arguments: Int) = method.type().parameterCount() == arguments
+    }
+
+  }
+
 }

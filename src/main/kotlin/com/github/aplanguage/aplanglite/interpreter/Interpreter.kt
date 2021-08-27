@@ -1,14 +1,22 @@
 package com.github.aplanguage.aplanglite.interpreter
 
+import com.github.aplanguage.aplanglite.interpreter.stdlib.StdLibFunctions
 import com.github.aplanguage.aplanglite.parser.Expression
-import com.github.aplanguage.aplanglite.utils.ASTPrinter
+import java.lang.invoke.MethodHandles
 
 class InterpreterException(message: String) : RuntimeException(message)
 
 class Interpreter {
 
-  data class Scope(val fields: MutableMap<String, Structure.VarStructure>, var scope: Scope? = null) {
-    fun findField(identifier: String): Structure.VarStructure? = fields.getOrDefault(identifier, scope?.findField(identifier))
+  data class Scope(
+    val fields: MutableMap<String, Structure.VarStructure> = mutableMapOf(),
+    val functions: Map<String, ReturnValue.CallableValue.CallableFunctionValue> = mutableMapOf(),
+    var scope: Scope? = null
+  ) {
+    fun findField(identifier: String): Structure.VarStructure? = fields.getOrElse(identifier) { scope?.findField(identifier) }
+
+    fun findCallable(identifier: String): ReturnValue.CallableValue.CallableFunctionValue? =
+      functions.getOrElse(identifier) { scope?.findCallable(identifier) }
   }
 
   fun runExpression(scope: Scope, expression: Expression): ReturnValue {
@@ -24,32 +32,14 @@ class Interpreter {
   fun compileAndRun(program: Expression.Program) {
     val structure = forgeStructure(program)
     val globalScope =
-      Scope(structure.structures.filterIsInstance(Structure.VarStructure::class.java).associateBy { it.identifier }.toMutableMap().also {
-        it.putAll(listOf(Structure.VarStructure("println", null, null, ReturnValue.CallableValue {
-          println(it.joinToString(", ") { returnValue -> returnValue.asString() })
-          ReturnValue.Unit
-        }),
-          Structure.VarStructure("range", null, null, ReturnValue.CallableValue {
-            when (it.size) {
-              1 -> {
-                val rightBound = it.first()
-                if (rightBound is ReturnValue.Number.IntegerNumber)
-                  ReturnValue.IterableValue((0..rightBound.number).map { ReturnValue.Number.IntegerNumber(it) })
-                else throw InterpreterException("range expects Integers as Parameters.")
-              }
-              2 -> {
-                val leftBound = it.first()
-                if (leftBound !is ReturnValue.Number.IntegerNumber) throw InterpreterException("range expects Integers as Parameters.")
-                val rightBound = it.last()
-                if (rightBound is ReturnValue.Number.IntegerNumber)
-                  ReturnValue.IterableValue((leftBound.number..rightBound.number).map { ReturnValue.Number.IntegerNumber(it) })
-                else throw InterpreterException("range expects Integers as Parameters.")
-              }
-              else -> throw InterpreterException("Too many arguments provided to range.")
-            }
-          })
-        ).associateBy { it.identifier })
-      })
+      Scope(structure.structures.filterIsInstance(Structure.VarStructure::class.java).associateBy { it.identifier }.toMutableMap(),
+        StdLibFunctions.javaClass.declaredMethods.let {
+          val lookup = MethodHandles.publicLookup().`in`(StdLibFunctions.javaClass);
+          it.map {
+            ReturnValue.CallableValue.CallableFunctionValue(it.name, lookup.unreflect(it))
+          }.associateBy { it.identifier }
+        }
+      )
     val main = structure.structures.find { it is Structure.FunctionStructure && it.identifier == "main" }
     if (main == null) println("No Main-Method Found")
     else runFunction(main as Structure.FunctionStructure, arrayOf(), globalScope)
@@ -76,7 +66,7 @@ class Interpreter {
     return runExpression(
       Scope(functionStructure.declaration.parameters.zip(arguments).map {
         Structure.VarStructure(it.first.first.obj.identifier, it.first.second.obj, null, it.second)
-      }.associateBy { it.identifier }.toMutableMap(), scope),
+      }.associateBy { it.identifier }.toMutableMap(), mapOf(), scope),
       functionStructure.declaration.block.obj
     )
   }
