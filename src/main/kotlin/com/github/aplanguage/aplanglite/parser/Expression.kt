@@ -24,7 +24,7 @@ sealed class Expression {
 
     data class FunctionCall(val arguments: List<GriddedObject<Expression>>) : Invocation() {
       override fun call(callableValue: ReturnValue.CallableValue, scope: Interpreter.Scope, interpreter: Interpreter): ReturnValue {
-        return  callableValue.callable(arguments.map { interpreter.runExpression(scope, it.obj) }.toTypedArray())
+        return callableValue.callable(arguments.map { interpreter.runExpression(scope, it.obj) }.toTypedArray())
       }
     }
 
@@ -283,9 +283,7 @@ sealed class Expression {
 
       data class IdentifierExpression(val identifier: String) : Primary() {
         override fun run(interpreter: Interpreter, scope: Interpreter.Scope): ReturnValue {
-          return scope.findField(identifier)?.let {
-            it.value ?: it.expression?.let { interpreter.runExpression(scope, it) }
-          } ?: scope.findCallable(identifier) ?: throw InterpreterException(
+          return scope.findField(identifier)?.evaluateValue(interpreter, scope) ?: scope.findCallable(identifier) ?: throw InterpreterException(
             "No $identifier found in scope: " + ASTPrinter.objToLines(ASTPrinter.convertObjWithFields(scope)).joinToString("\n")
           )
         }

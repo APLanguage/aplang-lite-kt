@@ -24,7 +24,11 @@ sealed class Structure {
     val type: Expression.Type?,
     var expression: Expression?,
     var value: ReturnValue?,
-  ) : Structure()
+  ) : Structure() {
+    fun evaluateValue(interpreter: Interpreter, scope: Interpreter.Scope): ReturnValue {
+      return value ?: expression?.let { value = interpreter.runExpression(scope, it); value } ?: ReturnValue.Unit
+    }
+  }
 
   data class GlobalStructure(val imports: List<UseStructure>, val structures: List<Structure>) : Structure()
 }
