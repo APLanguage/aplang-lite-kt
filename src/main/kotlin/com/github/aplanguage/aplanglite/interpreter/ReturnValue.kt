@@ -220,7 +220,65 @@ sealed class ReturnValue {
     override fun iterator() = iterator
   }
 
-  data class ObjectValue(val identifier: String, val fields: Map<String, ReturnValue>) : ReturnValue()
+
+  sealed class PropertiesNFunctionsValue(val identifier: String) : ReturnValue() {
+
+    abstract fun fields(interpreter: Interpreter, scope: Interpreter.Scope): Map<String, FieldValue>
+
+    abstract fun functions(interpreter: Interpreter, scope: Interpreter.Scope): Map<String, ReturnValue.CallableValue.CallableFunctionValue>
+
+    fun scope(interpreter: Interpreter, scope: Interpreter.Scope) =
+      Interpreter.Scope(fields(interpreter, scope).toMutableMap(), functions(interpreter, scope), null)
+
+    data class FieldValue(val varStructure: Structure.VarStructure) : PropertiesNFunctionsValue(varStructure.identifier) {
+      override fun fields(interpreter: Interpreter, scope: Interpreter.Scope): Map<String, FieldValue> {
+        val value = varStructure.evaluateValue(interpreter, scope)
+        return if (value is PropertiesNFunctionsValue) value.fields(interpreter, scope)
+        else mapOf()
+      }
+
+      override fun functions(interpreter: Interpreter, scope: Interpreter.Scope): Map<String, CallableValue.CallableFunctionValue> {
+        val value = varStructure.evaluateValue(interpreter, scope)
+        return if (value is PropertiesNFunctionsValue) value.functions(interpreter, scope)
+        else mapOf()
+      }
+
+      fun value(interpreter: Interpreter, scope: Interpreter.Scope) = varStructure.evaluateValue(interpreter, scope)
+
+      override fun supportBinaryOperation(token: CodeToken): Boolean = varStructure.value!!.supportBinaryOperation(token)
+
+      override fun applyBinaryOp(token: CodeToken, second: ReturnValue): ReturnValue = varStructure.value!!.applyBinaryOp(token, second)
+
+      override fun supportUnaryOperation(token: CodeToken): Boolean = varStructure.value!!.supportUnaryOperation(token)
+
+      override fun applyUnaryOp(token: CodeToken): ReturnValue = varStructure.value!!.applyUnaryOp(token)
+
+      override fun asString(): String = varStructure.value!!.asString()
+
+    }
+
+    class InstanceValue(
+      identifier: String,
+      private val fields: Map<String, FieldValue>,
+      private val functions: Map<String, CallableValue.CallableFunctionValue>
+    ) : PropertiesNFunctionsValue(identifier) {
+      override fun fields(interpreter: Interpreter, scope: Interpreter.Scope) = fields
+
+      override fun functions(interpreter: Interpreter, scope: Interpreter.Scope) = functions
+
+      fun callFunction(identifier: String, interpreter: Interpreter, scope: Interpreter.Scope, arguments: Array<ReturnValue>): ReturnValue {
+        val func = functions[identifier] ?: throw InterpreterException("No callable function named $identifier found in ${this.identifier}.")
+        return func.callable(scope, interpreter, arguments)
+      }
+
+      fun callFieldValue(identifier: String, interpreter: Interpreter, scope: Interpreter.Scope): ReturnValue {
+        val fieldValue = fields[identifier] ?: throw InterpreterException("No field named $identifier found in ${this.identifier}.")
+        return fieldValue.varStructure.evaluateValue(interpreter, scope)
+      }
+
+    }
+  }
+
   data class BooleanValue(val boolean: Boolean) : ReturnValue() {
     override fun supportBinaryOperation(token: CodeToken) =
       token in arrayOf(CodeToken.DOUBLE_VERTICAL_BAR, CodeToken.AMPERSAND_AMPERSAND, CodeToken.BANG_EQUAL, CodeToken.EQUAL_EQUAL)
@@ -243,28 +301,28 @@ sealed class ReturnValue {
     override fun asString() = boolean.toString()
   }
 
-  open class CallableValue(val callable: (Array<ReturnValue>) -> ReturnValue) : ReturnValue() {
+  open class CallableValue(val callable: (Interpreter.Scope, Interpreter, Array<ReturnValue>) -> ReturnValue) : ReturnValue() {
     data class CallableFunctionValue(
       val identifier: String,
       val method: MethodHandle
-    ) : CallableValue({
+    ) : CallableValue({ _, _, args ->
       val ret = if (method.type().parameterCount() == 1 && method.type().parameterType(0).isArray)
-        method.invoke(it)
+        method.invoke(args)
       else {
-        if (method.type().parameterCount() != it.size) throw InterpreterException(
+        if (method.type().parameterCount() != args.size) throw InterpreterException(
           "Wrong argument count passed in ${identifier}(${
             method.type().parameterArray().joinToString(", ") { it.simpleName }
-          })${method.type().returnType().simpleName}, expected ${method.type().parameterCount()} got ${it.size}."
-        ) else if (!method.type().parameterArray().zip(it).fold(true) { matches, pair ->
+          })${method.type().returnType().simpleName}, expected ${method.type().parameterCount()} got ${args.size}."
+        ) else if (!method.type().parameterArray().zip(args).fold(true) { matches, pair ->
             matches && pair.first.isInstance(pair.second)
           }) {
           throw InterpreterException(
             "Passed wrong argument types in ${identifier}(${
               method.type().parameterArray().joinToString(", ") { it.simpleName }
-            })${method.type().returnType().simpleName}, got ${it.map { it.javaClass.simpleName }.toString()}."
+            })${method.type().returnType().simpleName}, got ${args.map { it.javaClass.simpleName }.toString()}."
           )
         }
-        method.invokeWithArguments(it.toList())
+        method.invokeWithArguments(args.toList())
       }
       if (ret !is ReturnValue) ReturnValue.Unit
       else ret

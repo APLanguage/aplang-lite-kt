@@ -9,11 +9,12 @@ class InterpreterException(message: String) : RuntimeException(message)
 class Interpreter {
 
   data class Scope(
-    val fields: MutableMap<String, Structure.VarStructure> = mutableMapOf(),
+    val fields: MutableMap<String, ReturnValue.PropertiesNFunctionsValue.FieldValue> = mutableMapOf(),
     val functions: Map<String, ReturnValue.CallableValue.CallableFunctionValue> = mutableMapOf(),
     var scope: Scope? = null
   ) {
-    fun findField(identifier: String): Structure.VarStructure? = fields.getOrElse(identifier) { scope?.findField(identifier) }
+    fun findField(identifier: String): ReturnValue.PropertiesNFunctionsValue.FieldValue? =
+      fields.getOrElse(identifier) { scope?.findField(identifier) }
 
     fun findCallable(identifier: String): ReturnValue.CallableValue.CallableFunctionValue? =
       functions.getOrElse(identifier) { scope?.findCallable(identifier) }
@@ -32,7 +33,8 @@ class Interpreter {
   fun compileAndRun(program: Expression.Program) {
     val structure = forgeStructure(program)
     val globalScope =
-      Scope(structure.structures.filterIsInstance(Structure.VarStructure::class.java).associateBy { it.identifier }.toMutableMap(),
+      Scope(structure.structures.filterIsInstance(Structure.VarStructure::class.java).map { it.toFieldValue() }.associateBy { it.identifier }
+        .toMutableMap(),
         StdLibFunctions.javaClass.declaredMethods.let {
           val lookup = MethodHandles.publicLookup().`in`(StdLibFunctions.javaClass);
           it.map {
@@ -65,7 +67,7 @@ class Interpreter {
     }
     return runExpression(
       Scope(functionStructure.declaration.parameters.zip(arguments).map {
-        Structure.VarStructure(it.first.first.obj.identifier, it.first.second.obj, null, it.second)
+        Structure.VarStructure(it.first.first.obj.identifier, it.first.second.obj, null, it.second).toFieldValue()
       }.associateBy { it.identifier }.toMutableMap(), mapOf(), scope),
       functionStructure.declaration.block.obj
     )

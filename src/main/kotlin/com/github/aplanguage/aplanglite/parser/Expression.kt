@@ -24,7 +24,7 @@ sealed class Expression {
 
     data class FunctionCall(val arguments: List<GriddedObject<Expression>>) : Invocation() {
       override fun call(callableValue: ReturnValue.CallableValue, scope: Interpreter.Scope, interpreter: Interpreter): ReturnValue {
-        return callableValue.callable(arguments.map { interpreter.runExpression(scope, it.obj) }.toTypedArray())
+        return callableValue.callable(scope, interpreter, arguments.map { interpreter.runExpression(scope, it.obj) }.toTypedArray())
       }
     }
 
@@ -85,7 +85,7 @@ sealed class Expression {
                 identifier.obj.identifier to Structure.VarStructure(
                   identifier.obj.identifier,
                   null, null, obj
-                )
+                ).toFieldValue()
               ), mapOf(), scope
             ), stmtObj
           ).also { if (it is ReturnValue.TriggeredReturn) return it }
@@ -243,19 +243,45 @@ sealed class Expression {
       val calls: List<Pair<GriddedObject<GriddedObject<Token.IdentifierToken>>, List<GriddedObject<Invocation>>>>
     ) : DataExpression() {
       override fun run(interpreter: Interpreter, scope: Interpreter.Scope): ReturnValue {
-        var ret: ReturnValue = interpreter.runExpression(scope, primary.obj)
-        if (invocations.isNotEmpty()) {
-          ret = invocations.fold(ret) { retVal, invoc ->
-            when (retVal) {
-              is ReturnValue.CallableValue -> {
-                val invocation = invocations.first()
-                invocation.obj.call(retVal, scope, interpreter)
-              }
-              else -> throw InterpreterException("${retVal.javaClass.simpleName} is not callable for ${invoc.area()}.")
-            }
+        var ret: ReturnValue = when (val prim = primary.obj) {
+          is Primary.IdentifierExpression ->
+            if (invocations.isNotEmpty()) scope.findCallable(prim.identifier)
+              ?: throw InterpreterException("No function ${prim.identifier} found in scope ${ASTPrinter.objToString(scope)}.")
+            else interpreter.runExpression(scope, prim)
+          else -> interpreter.runExpression(scope, prim)
+        }
+        ret = callInvocations(ret, invocations, scope, interpreter)
+        if (calls.isNotEmpty()) {
+          ret = calls.fold(ret) { retVal, (identifier, calls) ->
+            if (retVal !is ReturnValue.PropertiesNFunctionsValue) throw InterpreterException("${ret.javaClass.simpleName} has no properties/functions nor can be called")
+            val valScope = retVal.scope(interpreter, scope)
+            if (calls.isNotEmpty()) callInvocations(
+              valScope.findCallable(identifier.obj.obj.identifier)
+                ?: throw InterpreterException("No function ${identifier.obj.obj.identifier} found in scope ${ASTPrinter.objToString(valScope)}."),
+              calls, valScope, interpreter
+            )
+            else valScope.findField(identifier.obj.obj.identifier)
+              ?: throw InterpreterException("No field ${identifier.obj.obj.identifier} found in scope ${ASTPrinter.objToString(valScope)}.")
           }
         }
         return ret
+      }
+
+      private fun callInvocations(
+        ret: ReturnValue,
+        invocations: List<GriddedObject<Invocation>>,
+        scope: Interpreter.Scope,
+        interpreter: Interpreter
+      ): ReturnValue {
+        return invocations.fold(ret) { retVal, invoc ->
+          when (retVal) {
+            is ReturnValue.CallableValue -> {
+              val invocation = invocations.first()
+              invocation.obj.call(retVal, scope, interpreter)
+            }
+            else -> throw InterpreterException("${retVal.javaClass.simpleName} is not callable for ${invoc.area()}.")
+          }
+        }
       }
     }
 
@@ -283,7 +309,7 @@ sealed class Expression {
 
       data class IdentifierExpression(val identifier: String) : Primary() {
         override fun run(interpreter: Interpreter, scope: Interpreter.Scope): ReturnValue {
-          return scope.findField(identifier)?.evaluateValue(interpreter, scope) ?: scope.findCallable(identifier) ?: throw InterpreterException(
+          return scope.findField(identifier) ?: scope.findCallable(identifier) ?: throw InterpreterException(
             "No $identifier found in scope: " + ASTPrinter.objToLines(ASTPrinter.convertObjWithFields(scope)).joinToString("\n")
           )
         }

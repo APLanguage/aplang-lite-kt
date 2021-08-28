@@ -28,6 +28,8 @@ sealed class Structure {
     fun evaluateValue(interpreter: Interpreter, scope: Interpreter.Scope): ReturnValue {
       return value ?: expression?.let { value = interpreter.runExpression(scope, it); value } ?: ReturnValue.Unit
     }
+
+    fun toFieldValue() : ReturnValue.PropertiesNFunctionsValue.FieldValue = ReturnValue.PropertiesNFunctionsValue.FieldValue(this)
   }
 
   data class GlobalStructure(val imports: List<UseStructure>, val structures: List<Structure>) : Structure()

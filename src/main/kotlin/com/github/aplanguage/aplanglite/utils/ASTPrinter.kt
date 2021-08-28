@@ -65,6 +65,8 @@ object ASTPrinter {
     }
   }
 
+  fun objToString(any: Any) = objToLines(convertObjWithFields(any)).joinToString("\n")
+
   fun convertObjWithFields(any: Any): Pair<String, Map<String, Any>> {
     return any.javaClass.declaredFields.mapNotNull {
       it.trySetAccessible()
