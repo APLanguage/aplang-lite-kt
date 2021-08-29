@@ -230,7 +230,10 @@ sealed class Expression {
           if (!value.obj.supportBinaryOperation(pair.first.obj.codeToken)) {
             throw InterpreterException("Binary Operation ${pair.first.obj.codeToken.name} (at ${pair.first.area()}) not supported on ${value.obj.javaClass.simpleName} at ${value.area()}.")
           }
-          val secondValue = interpreter.runExpression(scope, pair.second.obj)
+          val secondValue = interpreter.runExpression(scope, pair.second.obj).let {
+            if(it is ReturnValue.PropertiesNFunctionsValue.FieldValue) it.value(interpreter, scope)
+            else it
+          }
           if (!secondValue.supportBinaryOperation(pair.first.obj.codeToken)) {
             throw InterpreterException("Binary Operation ${pair.first.obj.codeToken.name} (at ${pair.first.area()}) not supported on ${secondValue.javaClass.simpleName} at ${pair.second.area()}.")
           }
