@@ -13,6 +13,11 @@ class Interpreter {
       is Expression.Block -> expression.run(this, scope)
       is Expression.DataExpression -> expression.run(this, scope)
       is Expression.Statement.BreakStatement -> ReturnValue.Unit
+      is Expression.Declaration.VarDeclaration -> {
+        val fieldVal = expression.toFieldValue().also { it.value(this, scope) }
+        scope.fields[expression.identifier.obj.identifier] = fieldVal
+        fieldVal
+      }
       is Expression.Statement -> expression.run(this, scope)
       else -> ReturnValue.Unit
     }
@@ -26,7 +31,9 @@ class Interpreter {
         StdLibFunctions.javaClass.declaredMethods.let { arrayOfMethods ->
           val lookup = MethodHandles.publicLookup().`in`(StdLibFunctions.javaClass);
           arrayOfMethods.map { method ->
-            ReturnValue.CallableValue.CallableFunctionValue(method.name, lookup.unreflect(method))
+            ReturnValue.CallableValue.CallableFunctionValue.NativeMethodCallable(method.name, lookup.unreflect(method))
+          }.associateBy { it.identifier } + structure.structures.filterIsInstance(Structure.ClassStructure::class.java).map {
+            ReturnValue.CallableValue.CallableFunctionValue.ClassCallValue(it)
           }.associateBy { it.identifier }
         }
       )
@@ -58,7 +65,10 @@ class Interpreter {
         Structure.VarStructure(it.first.first.obj.identifier, it.first.second.obj, null, it.second).toFieldValue()
       }.associateBy { it.identifier }.toMutableMap(), mapOf(), scope),
       functionStructure.declaration.block.obj
-    )
+    ).let {
+      if (it is ReturnValue.TriggeredReturn) it.returnValue ?: ReturnValue.Unit
+      else it
+    }
   }
 
   fun forgeStructure(program: Expression.Program): Structure.GlobalStructure = Structure.GlobalStructure(

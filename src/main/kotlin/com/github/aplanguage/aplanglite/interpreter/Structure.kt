@@ -11,13 +11,25 @@ sealed class Structure {
     val parameters: List<Expression.Type>,
     val type: Expression.Type?,
     val declaration: Expression.Declaration.FunctionDeclaration
-  ) : Structure()
+  ) : Structure() {
+    fun toCallableClassFunction() = ReturnValue.CallableValue.CallableFunctionValue.ClassMethodValue(identifier, this)
+  }
 
   data class ClassStructure(
     val identifier: String,
     val superTypes: List<Expression.Type>,
     val structure: GlobalStructure
-  ) : Structure()
+  ) : Structure() {
+    fun buildScope() = Scope(
+      structure.structures.filterIsInstance<VarStructure>().map {
+        it.toFieldValue()
+      }.associateBy { it.identifier }.toMutableMap(),
+      structure.structures.filterIsInstance<FunctionStructure>().map {
+        it.toCallableClassFunction()
+      }.associateBy { it.identifier }
+    )
+
+  }
 
   data class VarStructure(
     val identifier: String,
@@ -26,7 +38,7 @@ sealed class Structure {
     var value: ReturnValue?,
   ) : Structure() {
     fun evaluateValue(interpreter: Interpreter, scope: Scope): ReturnValue {
-      return value ?: expression?.let { value = interpreter.runExpression(scope, it); value } ?: ReturnValue.Null
+      return (value ?: expression?.let { interpreter.runExpression(scope, it); } ?: ReturnValue.Null).also { value = it }
     }
 
     fun toFieldValue() = ReturnValue.PropertiesNFunctionsValue.FieldValue(this)

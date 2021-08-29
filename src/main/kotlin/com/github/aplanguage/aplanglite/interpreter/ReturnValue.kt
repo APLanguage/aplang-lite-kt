@@ -230,7 +230,10 @@ sealed class ReturnValue {
     fun scope(interpreter: Interpreter, scope: Scope) =
       Scope(fields(interpreter, scope).toMutableMap(), functions(interpreter, scope), null)
 
-    data class FieldValue(val varStructure: Structure.VarStructure) : PropertiesNFunctionsValue(varStructure.identifier) {
+    open class FieldValue(val varStructure: Structure.VarStructure) :
+      PropertiesNFunctionsValue(varStructure.identifier) {
+
+
       override fun fields(interpreter: Interpreter, scope: Scope): Map<String, FieldValue> {
         val value = varStructure.evaluateValue(interpreter, scope)
         return if (value is PropertiesNFunctionsValue) value.fields(interpreter, scope)
@@ -243,7 +246,7 @@ sealed class ReturnValue {
         else mapOf()
       }
 
-      fun value(interpreter: Interpreter, scope: Scope) = varStructure.evaluateValue(interpreter, scope)
+      open fun value(interpreter: Interpreter, scope: Scope) = varStructure.evaluateValue(interpreter, scope)
 
       override fun supportBinaryOperation(token: CodeToken): Boolean = varStructure.value!!.supportBinaryOperation(token)
 
@@ -253,29 +256,39 @@ sealed class ReturnValue {
 
       override fun applyUnaryOp(token: CodeToken): ReturnValue = varStructure.value!!.applyUnaryOp(token)
 
-      override fun asString(): String = varStructure.value!!.asString()
+      override fun asString(): String = varStructure.value?.asString() ?: "FieldValue($varStructure) -> null"
 
-    }
+      class InstanceValue(
+        identifier: String,
+        private val scope: Scope
+      ) : FieldValue(Structure.VarStructure(identifier, null, null, null)) {
+        override fun fields(interpreter: Interpreter, scope: Scope) = this.scope.fields
 
-    class InstanceValue(
-      identifier: String,
-      private val fields: Map<String, FieldValue>,
-      private val functions: Map<String, CallableValue.CallableFunctionValue>
-    ) : PropertiesNFunctionsValue(identifier) {
-      override fun fields(interpreter: Interpreter, scope: Scope) = fields
+        override fun functions(interpreter: Interpreter, scope: Scope) = this.scope.functions
 
-      override fun functions(interpreter: Interpreter, scope: Scope) = functions
+        fun callFunction(identifier: String, interpreter: Interpreter, arguments: Array<ReturnValue>): ReturnValue {
+          val func =
+            this.scope.functions[identifier] ?: throw InterpreterException("No callable function named $identifier found in ${this.identifier}.")
+          return func.call(interpreter, this.scope, arguments)
+        }
 
-      fun callFunction(identifier: String, interpreter: Interpreter, scope: Scope, arguments: Array<ReturnValue>): ReturnValue {
-        val func = functions[identifier] ?: throw InterpreterException("No callable function named $identifier found in ${this.identifier}.")
-        return func.call(interpreter, scope, arguments)
+        fun callFieldValue(identifier: String, interpreter: Interpreter): ReturnValue {
+          val fieldValue = this.scope.fields[identifier] ?: throw InterpreterException("No field named $identifier found in ${this.identifier}.")
+          return fieldValue.value(interpreter, this.scope)
+        }
+
+        override fun value(interpreter: Interpreter, scope: Scope) = this
+
+        override fun supportBinaryOperation(token: CodeToken): Boolean = false
+
+        override fun applyBinaryOp(token: CodeToken, second: ReturnValue): ReturnValue = Unit
+
+        override fun supportUnaryOperation(token: CodeToken): Boolean = false
+
+        override fun applyUnaryOp(token: CodeToken): ReturnValue = Unit
+
+        override fun asString(): String = "InstanceValue($identifier, $scope)"
       }
-
-      fun callFieldValue(identifier: String, interpreter: Interpreter, scope: Scope): ReturnValue {
-        val fieldValue = fields[identifier] ?: throw InterpreterException("No field named $identifier found in ${this.identifier}.")
-        return fieldValue.varStructure.evaluateValue(interpreter, scope)
-      }
-
     }
   }
 
@@ -305,41 +318,71 @@ sealed class ReturnValue {
 
     abstract fun call(interpreter: Interpreter, scope: Scope, arguments: Array<ReturnValue>): ReturnValue
 
-    data class CallableFunctionValue(
-      val identifier: String,
-      val method: MethodHandle
+    sealed class CallableFunctionValue(
+      val identifier: String
     ) : CallableValue() {
 
-      fun supportTypes(arguments: Array<ReturnValue>): Boolean {
-        return rightAmount(arguments.size) && method.type().parameterArray().zip(arguments).fold(true) { matches, pair ->
-          matches && pair.first.isInstance(pair.second)
+      abstract fun supportTypes(arguments: Array<ReturnValue>): Boolean
+
+      abstract fun rightAmount(arguments: Int): Boolean
+
+      class NativeMethodCallable(identifier: String, val method: MethodHandle) : CallableFunctionValue(identifier) {
+        override fun supportTypes(arguments: Array<ReturnValue>): Boolean {
+          return rightAmount(arguments.size) && method.type().parameterArray().zip(arguments).fold(true) { matches, pair ->
+            matches && pair.first.isInstance(pair.second)
+          }
+        }
+
+        override fun rightAmount(arguments: Int) = method.type().parameterCount() == arguments
+
+        override fun call(interpreter: Interpreter, scope: Scope, arguments: Array<ReturnValue>): ReturnValue {
+          val ret = if (method.type().parameterCount() == 1 && method.type().parameterType(0).isArray)
+            method.invoke(arguments)
+          else {
+            if (method.type().parameterCount() != arguments.size) throw InterpreterException(
+              "Wrong argument count passed in ${identifier}(${
+                method.type().parameterArray().joinToString(", ") { it.simpleName }
+              })${method.type().returnType().simpleName}, expected ${method.type().parameterCount()} got ${arguments.size}."
+            ) else if (!method.type().parameterArray().zip(arguments).fold(true) { matches, pair ->
+                matches && pair.first.isInstance(pair.second)
+              }) {
+              throw InterpreterException(
+                "Passed wrong argument types in ${identifier}(${
+                  method.type().parameterArray().joinToString(", ") { it.simpleName }
+                })${method.type().returnType().simpleName}, got ${arguments.map { it.javaClass.simpleName }.toString()}."
+              )
+            }
+            method.invokeWithArguments(arguments.toList())
+          }
+          return if (ret !is ReturnValue) ReturnValue.Unit
+          else ret
         }
       }
 
-      fun rightAmount(arguments: Int) = method.type().parameterCount() == arguments
-      override fun call(interpreter: Interpreter, scope: Scope, arguments: Array<ReturnValue>): ReturnValue {
-        val ret = if (method.type().parameterCount() == 1 && method.type().parameterType(0).isArray)
-          method.invoke(arguments)
-        else {
-          if (method.type().parameterCount() != arguments.size) throw InterpreterException(
-            "Wrong argument count passed in ${identifier}(${
-              method.type().parameterArray().joinToString(", ") { it.simpleName }
-            })${method.type().returnType().simpleName}, expected ${method.type().parameterCount()} got ${arguments.size}."
-          ) else if (!method.type().parameterArray().zip(arguments).fold(true) { matches, pair ->
-              matches && pair.first.isInstance(pair.second)
-            }) {
-            throw InterpreterException(
-              "Passed wrong argument types in ${identifier}(${
-                method.type().parameterArray().joinToString(", ") { it.simpleName }
-              })${method.type().returnType().simpleName}, got ${arguments.map { it.javaClass.simpleName }.toString()}."
-            )
-          }
-          method.invokeWithArguments(arguments.toList())
+      class ClassMethodValue(identifier: String, val function: Structure.FunctionStructure) :
+        CallableFunctionValue(identifier) {
+        override fun supportTypes(arguments: Array<ReturnValue>) = function.parameters.size == arguments.size
+
+        override fun rightAmount(arguments: Int) = arguments == function.parameters.size
+
+        override fun call(interpreter: Interpreter, scope: Scope, arguments: Array<ReturnValue>): ReturnValue {
+          return interpreter.runFunction(function, arguments, scope)
         }
-        return if (ret !is ReturnValue) ReturnValue.Unit
-        else ret
+      }
+
+      data class ClassCallValue(val clazz: Structure.ClassStructure) : CallableFunctionValue(clazz.identifier) {
+        override fun supportTypes(arguments: Array<ReturnValue>) = arguments.isEmpty()
+
+        override fun rightAmount(arguments: Int) = arguments == 0
+
+        override fun call(interpreter: Interpreter, scope: Scope, arguments: Array<ReturnValue>): ReturnValue {
+          return PropertiesNFunctionsValue.FieldValue.InstanceValue(clazz.identifier, clazz.buildScope().also {
+            for (field in it.fields.values) {
+              field.value(interpreter, scope)
+            }
+          })
+        }
       }
     }
   }
-
 }

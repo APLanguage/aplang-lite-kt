@@ -39,7 +39,11 @@ sealed class Expression {
       val identifier: GriddedObject<Token.IdentifierToken>,
       val type: GriddedObject<Type>?,
       val expr: GriddedObject<Expression>?
-    ) : Declaration()
+    ) : Declaration() {
+      fun toFieldValue(): ReturnValue.PropertiesNFunctionsValue.FieldValue {
+        return ReturnValue.PropertiesNFunctionsValue.FieldValue(Structure.VarStructure(identifier.obj.identifier, type?.obj, expr?.obj, null))
+      }
+    }
 
 
     data class FunctionDeclaration(

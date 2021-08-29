@@ -5,7 +5,7 @@ import com.github.aplanguage.aplanglite.interpreter.ReturnValue
 object StdLibFunctions {
   @JvmStatic
   fun println(arguments: Array<ReturnValue>) {
-    println(arguments.joinToString(", ") { returnValue -> returnValue.asString() })
+    println(arguments.joinToString(" ") { returnValue -> returnValue.asString() })
   }
 
   @JvmStatic
