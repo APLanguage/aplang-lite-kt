@@ -223,27 +223,27 @@ sealed class ReturnValue {
 
   sealed class PropertiesNFunctionsValue(val identifier: String) : ReturnValue() {
 
-    abstract fun fields(interpreter: Interpreter, scope: Interpreter.Scope): Map<String, FieldValue>
+    abstract fun fields(interpreter: Interpreter, scope: Scope): Map<String, FieldValue>
 
-    abstract fun functions(interpreter: Interpreter, scope: Interpreter.Scope): Map<String, ReturnValue.CallableValue.CallableFunctionValue>
+    abstract fun functions(interpreter: Interpreter, scope: Scope): Map<String, ReturnValue.CallableValue.CallableFunctionValue>
 
-    fun scope(interpreter: Interpreter, scope: Interpreter.Scope) =
-      Interpreter.Scope(fields(interpreter, scope).toMutableMap(), functions(interpreter, scope), null)
+    fun scope(interpreter: Interpreter, scope: Scope) =
+      Scope(fields(interpreter, scope).toMutableMap(), functions(interpreter, scope), null)
 
     data class FieldValue(val varStructure: Structure.VarStructure) : PropertiesNFunctionsValue(varStructure.identifier) {
-      override fun fields(interpreter: Interpreter, scope: Interpreter.Scope): Map<String, FieldValue> {
+      override fun fields(interpreter: Interpreter, scope: Scope): Map<String, FieldValue> {
         val value = varStructure.evaluateValue(interpreter, scope)
         return if (value is PropertiesNFunctionsValue) value.fields(interpreter, scope)
         else mapOf()
       }
 
-      override fun functions(interpreter: Interpreter, scope: Interpreter.Scope): Map<String, CallableValue.CallableFunctionValue> {
+      override fun functions(interpreter: Interpreter, scope: Scope): Map<String, CallableValue.CallableFunctionValue> {
         val value = varStructure.evaluateValue(interpreter, scope)
         return if (value is PropertiesNFunctionsValue) value.functions(interpreter, scope)
         else mapOf()
       }
 
-      fun value(interpreter: Interpreter, scope: Interpreter.Scope) = varStructure.evaluateValue(interpreter, scope)
+      fun value(interpreter: Interpreter, scope: Scope) = varStructure.evaluateValue(interpreter, scope)
 
       override fun supportBinaryOperation(token: CodeToken): Boolean = varStructure.value!!.supportBinaryOperation(token)
 
@@ -262,16 +262,16 @@ sealed class ReturnValue {
       private val fields: Map<String, FieldValue>,
       private val functions: Map<String, CallableValue.CallableFunctionValue>
     ) : PropertiesNFunctionsValue(identifier) {
-      override fun fields(interpreter: Interpreter, scope: Interpreter.Scope) = fields
+      override fun fields(interpreter: Interpreter, scope: Scope) = fields
 
-      override fun functions(interpreter: Interpreter, scope: Interpreter.Scope) = functions
+      override fun functions(interpreter: Interpreter, scope: Scope) = functions
 
-      fun callFunction(identifier: String, interpreter: Interpreter, scope: Interpreter.Scope, arguments: Array<ReturnValue>): ReturnValue {
+      fun callFunction(identifier: String, interpreter: Interpreter, scope: Scope, arguments: Array<ReturnValue>): ReturnValue {
         val func = functions[identifier] ?: throw InterpreterException("No callable function named $identifier found in ${this.identifier}.")
         return func.call(interpreter, scope, arguments)
       }
 
-      fun callFieldValue(identifier: String, interpreter: Interpreter, scope: Interpreter.Scope): ReturnValue {
+      fun callFieldValue(identifier: String, interpreter: Interpreter, scope: Scope): ReturnValue {
         val fieldValue = fields[identifier] ?: throw InterpreterException("No field named $identifier found in ${this.identifier}.")
         return fieldValue.varStructure.evaluateValue(interpreter, scope)
       }
@@ -303,7 +303,7 @@ sealed class ReturnValue {
 
   sealed class CallableValue() : ReturnValue() {
 
-    abstract fun call(interpreter: Interpreter, scope: Interpreter.Scope, arguments: Array<ReturnValue>): ReturnValue
+    abstract fun call(interpreter: Interpreter, scope: Scope, arguments: Array<ReturnValue>): ReturnValue
 
     data class CallableFunctionValue(
       val identifier: String,
@@ -317,7 +317,7 @@ sealed class ReturnValue {
       }
 
       fun rightAmount(arguments: Int) = method.type().parameterCount() == arguments
-      override fun call(interpreter: Interpreter, scope: Interpreter.Scope, arguments: Array<ReturnValue>): ReturnValue {
+      override fun call(interpreter: Interpreter, scope: Scope, arguments: Array<ReturnValue>): ReturnValue {
         val ret = if (method.type().parameterCount() == 1 && method.type().parameterType(0).isArray)
           method.invoke(arguments)
         else {

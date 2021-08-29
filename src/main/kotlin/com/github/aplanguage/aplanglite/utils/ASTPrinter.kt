@@ -2,6 +2,7 @@ package com.github.aplanguage.aplanglite.utils
 
 import com.github.aplanguage.aplanglite.interpreter.Interpreter
 import com.github.aplanguage.aplanglite.interpreter.ReturnValue
+import com.github.aplanguage.aplanglite.interpreter.Scope
 import com.github.aplanguage.aplanglite.interpreter.Structure
 import com.github.aplanguage.aplanglite.parser.Expression
 import com.github.aplanguage.aplanglite.tokenizer.Token
@@ -50,7 +51,7 @@ object ASTPrinter {
       }.flatten()
       is Pair<*, *> -> listOf("(", *convert(any.first).map { "  $it" }.toTypedArray(), *convert(any.second).map { "  $it" }.toTypedArray(), ")")
       is ReturnValue.CallableValue -> listOf("CallableValue(${any})")
-      is Expression, is Token, is Expression.Invocation, is Structure, is ReturnValue, is Interpreter.Scope -> objToLines(convertObjWithFields(any))
+      is Expression, is Token, is Expression.Invocation, is Structure, is ReturnValue, is Scope -> objToLines(convertObjWithFields(any))
       is BigInteger, is Boolean, is Double, is Long, is Int -> listOf(any.toString())
       is Enum<*> -> listOf(any.name)
       is Area -> listOf(

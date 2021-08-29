@@ -25,11 +25,11 @@ sealed class Structure {
     var expression: Expression?,
     var value: ReturnValue?,
   ) : Structure() {
-    fun evaluateValue(interpreter: Interpreter, scope: Interpreter.Scope): ReturnValue {
-      return value ?: expression?.let { value = interpreter.runExpression(scope, it); value } ?: ReturnValue.Unit
+    fun evaluateValue(interpreter: Interpreter, scope: Scope): ReturnValue {
+      return value ?: expression?.let { value = interpreter.runExpression(scope, it); value } ?: ReturnValue.Null
     }
 
-    fun toFieldValue() : ReturnValue.PropertiesNFunctionsValue.FieldValue = ReturnValue.PropertiesNFunctionsValue.FieldValue(this)
+    fun toFieldValue() = ReturnValue.PropertiesNFunctionsValue.FieldValue(this)
   }
 
   data class GlobalStructure(val imports: List<UseStructure>, val structures: List<Structure>) : Structure()

@@ -1,9 +1,6 @@
 package com.github.aplanguage.aplanglite.parser
 
-import com.github.aplanguage.aplanglite.interpreter.Interpreter
-import com.github.aplanguage.aplanglite.interpreter.InterpreterException
-import com.github.aplanguage.aplanglite.interpreter.ReturnValue
-import com.github.aplanguage.aplanglite.interpreter.Structure
+import com.github.aplanguage.aplanglite.interpreter.*
 import com.github.aplanguage.aplanglite.tokenizer.Token
 import com.github.aplanguage.aplanglite.tokenizer.ValueKeyword
 import com.github.aplanguage.aplanglite.utils.ASTPrinter
@@ -20,16 +17,16 @@ sealed class Expression {
 
   sealed class Invocation {
 
-    abstract fun call(callableValue: ReturnValue.CallableValue, scope: Interpreter.Scope, interpreter: Interpreter): ReturnValue
+    abstract fun call(callableValue: ReturnValue.CallableValue, scope: Scope, interpreter: Interpreter): ReturnValue
 
     data class FunctionCall(val arguments: List<GriddedObject<Expression>>) : Invocation() {
-      override fun call(callableValue: ReturnValue.CallableValue, scope: Interpreter.Scope, interpreter: Interpreter): ReturnValue {
+      override fun call(callableValue: ReturnValue.CallableValue, scope: Scope, interpreter: Interpreter): ReturnValue {
         return callableValue.call(interpreter, scope, arguments.map { interpreter.runExpression(scope, it.obj) }.toTypedArray())
       }
     }
 
     data class ArrayCall(val expr: GriddedObject<Expression>) : Invocation() {
-      override fun call(callableValue: ReturnValue.CallableValue, scope: Interpreter.Scope, interpreter: Interpreter): ReturnValue {
+      override fun call(callableValue: ReturnValue.CallableValue, scope: Scope, interpreter: Interpreter): ReturnValue {
         TODO("Not yet implemented")
       }
     }
@@ -61,14 +58,14 @@ sealed class Expression {
 
   sealed class Statement : Expression() {
 
-    open fun run(interpreter: Interpreter, scope: Interpreter.Scope): ReturnValue = ReturnValue.Unit
+    open fun run(interpreter: Interpreter, scope: Scope): ReturnValue = ReturnValue.Unit
 
     data class ForStatement(
       val identifier: GriddedObject<Token.IdentifierToken>,
       val iterableExpr: GriddedObject<Expression>,
       val statement: GriddedObject<Expression>
     ) : Statement() {
-      override fun run(interpreter: Interpreter, scope: Interpreter.Scope): ReturnValue {
+      override fun run(interpreter: Interpreter, scope: Scope): ReturnValue {
         val iterableValue = when (val expr = iterableExpr.obj) {
           else -> when (val iterableValue = interpreter.runExpression(scope, expr)) {
             is ReturnValue.IterableValue -> iterableValue
@@ -80,7 +77,7 @@ sealed class Expression {
           if (stmtObj is BreakStatement) return ReturnValue.Unit
           if (stmtObj is ReturnStatement) return ReturnValue.TriggeredReturn(stmtObj.expr?.let { interpreter.runExpression(scope, it.obj) })
           interpreter.runExpression(
-            Interpreter.Scope(
+            Scope(
               mutableMapOf(
                 identifier.obj.identifier to Structure.VarStructure(
                   identifier.obj.identifier,
@@ -95,7 +92,7 @@ sealed class Expression {
     }
 
     data class ReturnStatement(val expr: GriddedObject<Expression>?) : Statement() {
-      override fun run(interpreter: Interpreter, scope: Interpreter.Scope): ReturnValue {
+      override fun run(interpreter: Interpreter, scope: Scope): ReturnValue {
         return ReturnValue.TriggeredReturn(expr?.obj?.let { interpreter.runExpression(scope, it) })
       }
     }
@@ -111,7 +108,7 @@ sealed class Expression {
     }
 
     data class WhileStatement(val condition: GriddedObject<Expression>, val statement: GriddedObject<Expression>?) : Statement() {
-      override fun run(interpreter: Interpreter, scope: Interpreter.Scope): ReturnValue {
+      override fun run(interpreter: Interpreter, scope: Scope): ReturnValue {
         while (when (val expr = condition.obj) {
             is DataExpression -> expr.run(interpreter, scope).let {
               if (it is ReturnValue.BooleanValue) it
@@ -124,7 +121,7 @@ sealed class Expression {
             val stmtObj = statement.obj
             if (stmtObj is BreakStatement) return ReturnValue.Unit
             if (stmtObj is ReturnStatement) return ReturnValue.TriggeredReturn(stmtObj.expr?.let { interpreter.runExpression(scope, it.obj) })
-            interpreter.runExpression(Interpreter.Scope(mutableMapOf(), mapOf(), scope), stmtObj)
+            interpreter.runExpression(Scope(mutableMapOf(), mapOf(), scope), stmtObj)
               .also { if (it is ReturnValue.TriggeredReturn) return it }
           }
         }
@@ -137,7 +134,7 @@ sealed class Expression {
       val thenStmt: GriddedObject<Expression>,
       val elseStmt: GriddedObject<Expression>?
     ) : Statement() {
-      override fun run(interpreter: Interpreter, scope: Interpreter.Scope): ReturnValue {
+      override fun run(interpreter: Interpreter, scope: Scope): ReturnValue {
         val conditionValue: ReturnValue.BooleanValue = when (val expr = condition.obj) {
           is DataExpression -> expr.run(interpreter, scope).let {
             if (it is ReturnValue.BooleanValue) it
@@ -146,10 +143,10 @@ sealed class Expression {
           else -> throw InterpreterException("No ${condition.obj.javaClass.simpleName} as condition allowed at ${condition.area()}.")
         }
         if (conditionValue.boolean) {
-          interpreter.runExpression(Interpreter.Scope(mutableMapOf(), mapOf(), scope), thenStmt.obj)
+          interpreter.runExpression(Scope(mutableMapOf(), mapOf(), scope), thenStmt.obj)
             .also { if (it is ReturnValue.TriggeredReturn) return it }
         } else if (elseStmt != null) {
-          interpreter.runExpression(Interpreter.Scope(mutableMapOf(), mapOf(), scope), elseStmt.obj)
+          interpreter.runExpression(Scope(mutableMapOf(), mapOf(), scope), elseStmt.obj)
             .also { if (it is ReturnValue.TriggeredReturn) return it }
         }
         return ReturnValue.Unit
@@ -158,9 +155,9 @@ sealed class Expression {
   }
 
   data class Block(val statements: List<GriddedObject<Expression>>) : Expression() {
-    fun run(interpreter: Interpreter, scope: Interpreter.Scope): ReturnValue {
+    fun run(interpreter: Interpreter, scope: Scope): ReturnValue {
       var returnValue: ReturnValue = ReturnValue.Unit
-      val blockScope = Interpreter.Scope(mutableMapOf(), mapOf(), scope)
+      val blockScope = Scope(mutableMapOf(), mapOf(), scope)
       for (statement in statements) {
         returnValue = interpreter.runExpression(blockScope, statement.obj).also { if (it is ReturnValue.TriggeredReturn) return it }
       }
@@ -170,7 +167,7 @@ sealed class Expression {
 
   sealed class DataExpression : Expression() {
 
-    open fun run(interpreter: Interpreter, scope: Interpreter.Scope): ReturnValue = ReturnValue.Unit
+    open fun run(interpreter: Interpreter, scope: Scope): ReturnValue = ReturnValue.Unit
 
     data class Assignment(
       val call: GriddedObject<Expression>,
@@ -183,7 +180,7 @@ sealed class Expression {
       val thenExpr: GriddedObject<Expression>,
       val elseExpr: GriddedObject<Expression>
     ) : DataExpression() {
-      override fun run(interpreter: Interpreter, scope: Interpreter.Scope): ReturnValue {
+      override fun run(interpreter: Interpreter, scope: Scope): ReturnValue {
         val conditionValue: ReturnValue.BooleanValue = when (val expr = condition.obj) {
           is BrokenExpression -> throw InterpreterException("Cannot execute broken at ${condition.area()}.")
           is DataExpression -> expr.run(interpreter, scope).let {
@@ -193,7 +190,7 @@ sealed class Expression {
           else -> throw InterpreterException("No ${condition.obj.javaClass.simpleName} as condition allowed at ${condition.area()}.")
         }
         return interpreter.runExpression(
-          Interpreter.Scope(mutableMapOf(), mapOf(), scope),
+          Scope(mutableMapOf(), mapOf(), scope),
           if (conditionValue.boolean) thenExpr.obj else elseExpr.obj
         )
       }
@@ -203,7 +200,7 @@ sealed class Expression {
       val first: GriddedObject<Expression>,
       val operations: List<Pair<GriddedObject<Token.SignToken>, GriddedObject<Expression>>>
     ) : DataExpression() {
-      override fun run(interpreter: Interpreter, scope: Interpreter.Scope): ReturnValue {
+      override fun run(interpreter: Interpreter, scope: Scope): ReturnValue {
         val firstValue = interpreter.runExpression(scope, first.obj)
         return operations.fold(first.repack(firstValue)) { value, pair ->
           if (!value.obj.supportBinaryOperation(pair.first.obj.codeToken)) {
@@ -228,7 +225,7 @@ sealed class Expression {
       val operation: GriddedObject<Token.SignToken>,
       val expr: GriddedObject<Expression>
     ) : DataExpression() {
-      override fun run(interpreter: Interpreter, scope: Interpreter.Scope): ReturnValue {
+      override fun run(interpreter: Interpreter, scope: Scope): ReturnValue {
         val value = interpreter.runExpression(scope, expr.obj)
         return if (value.supportUnaryOperation(operation.obj.codeToken)) value.applyUnaryOp(operation.obj.codeToken).also {
           if (it !is ReturnValue.Unit) throw InterpreterException("Unsupported Unary Operation ${operation.obj.codeToken.name} for ${value.javaClass.simpleName} at ${expr.area()}.")
@@ -242,7 +239,7 @@ sealed class Expression {
       val invocations: List<GriddedObject<Invocation>>,
       val calls: List<Pair<GriddedObject<GriddedObject<Token.IdentifierToken>>, List<GriddedObject<Invocation>>>>
     ) : DataExpression() {
-      override fun run(interpreter: Interpreter, scope: Interpreter.Scope): ReturnValue {
+      override fun run(interpreter: Interpreter, scope: Scope): ReturnValue {
         var ret: ReturnValue = when (val prim = primary.obj) {
           is Primary.IdentifierExpression ->
             if (invocations.isNotEmpty()) scope.findCallable(prim.identifier)
@@ -270,7 +267,7 @@ sealed class Expression {
       private fun callInvocations(
         ret: ReturnValue,
         invocations: List<GriddedObject<Invocation>>,
-        scope: Interpreter.Scope,
+        scope: Scope,
         interpreter: Interpreter
       ): ReturnValue {
         return invocations.fold(ret) { retVal, invoc ->
@@ -287,7 +284,7 @@ sealed class Expression {
 
     sealed class Primary : DataExpression() {
       data class DirectValue(val value: Token.ValueToken) : Primary() {
-        override fun run(interpreter: Interpreter, scope: Interpreter.Scope): ReturnValue {
+        override fun run(interpreter: Interpreter, scope: Scope): ReturnValue {
           return when (value) {
             is Token.ValueToken.LiteralToken -> when (value) {
               is Token.ValueToken.LiteralToken.FloatToken -> ReturnValue.Number.FloatNumber(
@@ -308,7 +305,7 @@ sealed class Expression {
       }
 
       data class IdentifierExpression(val identifier: String) : Primary() {
-        override fun run(interpreter: Interpreter, scope: Interpreter.Scope): ReturnValue {
+        override fun run(interpreter: Interpreter, scope: Scope): ReturnValue {
           return scope.findField(identifier) ?: scope.findCallable(identifier) ?: throw InterpreterException(
             "No $identifier found in scope: " + ASTPrinter.objToLines(ASTPrinter.convertObjWithFields(scope)).joinToString("\n")
           )
