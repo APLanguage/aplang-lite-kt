@@ -24,7 +24,7 @@ sealed class Expression {
 
     data class FunctionCall(val arguments: List<GriddedObject<Expression>>) : Invocation() {
       override fun call(callableValue: ReturnValue.CallableValue, scope: Interpreter.Scope, interpreter: Interpreter): ReturnValue {
-        return callableValue.callable(scope, interpreter, arguments.map { interpreter.runExpression(scope, it.obj) }.toTypedArray())
+        return callableValue.call(interpreter, scope, arguments.map { interpreter.runExpression(scope, it.obj) }.toTypedArray())
       }
     }
 

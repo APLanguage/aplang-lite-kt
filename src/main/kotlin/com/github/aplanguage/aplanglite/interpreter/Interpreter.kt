@@ -35,10 +35,10 @@ class Interpreter {
     val globalScope =
       Scope(structure.structures.filterIsInstance(Structure.VarStructure::class.java).map { it.toFieldValue() }.associateBy { it.identifier }
         .toMutableMap(),
-        StdLibFunctions.javaClass.declaredMethods.let {
+        StdLibFunctions.javaClass.declaredMethods.let { arrayOfMethods ->
           val lookup = MethodHandles.publicLookup().`in`(StdLibFunctions.javaClass);
-          it.map {
-            ReturnValue.CallableValue.CallableFunctionValue(it.name, lookup.unreflect(it))
+          arrayOfMethods.map { method ->
+            ReturnValue.CallableValue.CallableFunctionValue(method.name, lookup.unreflect(method))
           }.associateBy { it.identifier }
         }
       )

@@ -268,7 +268,7 @@ sealed class ReturnValue {
 
       fun callFunction(identifier: String, interpreter: Interpreter, scope: Interpreter.Scope, arguments: Array<ReturnValue>): ReturnValue {
         val func = functions[identifier] ?: throw InterpreterException("No callable function named $identifier found in ${this.identifier}.")
-        return func.callable(scope, interpreter, arguments)
+        return func.call(interpreter, scope, arguments)
       }
 
       fun callFieldValue(identifier: String, interpreter: Interpreter, scope: Interpreter.Scope): ReturnValue {
@@ -301,32 +301,14 @@ sealed class ReturnValue {
     override fun asString() = boolean.toString()
   }
 
-  open class CallableValue(val callable: (Interpreter.Scope, Interpreter, Array<ReturnValue>) -> ReturnValue) : ReturnValue() {
+  sealed class CallableValue() : ReturnValue() {
+
+    abstract fun call(interpreter: Interpreter, scope: Interpreter.Scope, arguments: Array<ReturnValue>): ReturnValue
+
     data class CallableFunctionValue(
       val identifier: String,
       val method: MethodHandle
-    ) : CallableValue({ _, _, args ->
-      val ret = if (method.type().parameterCount() == 1 && method.type().parameterType(0).isArray)
-        method.invoke(args)
-      else {
-        if (method.type().parameterCount() != args.size) throw InterpreterException(
-          "Wrong argument count passed in ${identifier}(${
-            method.type().parameterArray().joinToString(", ") { it.simpleName }
-          })${method.type().returnType().simpleName}, expected ${method.type().parameterCount()} got ${args.size}."
-        ) else if (!method.type().parameterArray().zip(args).fold(true) { matches, pair ->
-            matches && pair.first.isInstance(pair.second)
-          }) {
-          throw InterpreterException(
-            "Passed wrong argument types in ${identifier}(${
-              method.type().parameterArray().joinToString(", ") { it.simpleName }
-            })${method.type().returnType().simpleName}, got ${args.map { it.javaClass.simpleName }.toString()}."
-          )
-        }
-        method.invokeWithArguments(args.toList())
-      }
-      if (ret !is ReturnValue) ReturnValue.Unit
-      else ret
-    }) {
+    ) : CallableValue() {
 
       fun supportTypes(arguments: Array<ReturnValue>): Boolean {
         return rightAmount(arguments.size) && method.type().parameterArray().zip(arguments).fold(true) { matches, pair ->
@@ -335,8 +317,29 @@ sealed class ReturnValue {
       }
 
       fun rightAmount(arguments: Int) = method.type().parameterCount() == arguments
+      override fun call(interpreter: Interpreter, scope: Interpreter.Scope, arguments: Array<ReturnValue>): ReturnValue {
+        val ret = if (method.type().parameterCount() == 1 && method.type().parameterType(0).isArray)
+          method.invoke(arguments)
+        else {
+          if (method.type().parameterCount() != arguments.size) throw InterpreterException(
+            "Wrong argument count passed in ${identifier}(${
+              method.type().parameterArray().joinToString(", ") { it.simpleName }
+            })${method.type().returnType().simpleName}, expected ${method.type().parameterCount()} got ${arguments.size}."
+          ) else if (!method.type().parameterArray().zip(arguments).fold(true) { matches, pair ->
+              matches && pair.first.isInstance(pair.second)
+            }) {
+            throw InterpreterException(
+              "Passed wrong argument types in ${identifier}(${
+                method.type().parameterArray().joinToString(", ") { it.simpleName }
+              })${method.type().returnType().simpleName}, got ${arguments.map { it.javaClass.simpleName }.toString()}."
+            )
+          }
+          method.invokeWithArguments(arguments.toList())
+        }
+        return if (ret !is ReturnValue) ReturnValue.Unit
+        else ret
+      }
     }
-
   }
 
 }
