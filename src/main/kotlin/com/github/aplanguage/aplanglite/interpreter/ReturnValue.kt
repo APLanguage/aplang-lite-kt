@@ -256,7 +256,9 @@ sealed class ReturnValue {
 
       override fun applyUnaryOp(token: CodeToken): ReturnValue = varStructure.value!!.applyUnaryOp(token)
 
-      override fun asString(): String = varStructure.value?.asString() ?: "FieldValue($varStructure) -> null"
+      override fun asString(): String = varStructure.value?.asString() ?: "FieldValue($varStructure)"
+
+      override fun toString() = asString()
 
       class InstanceValue(
         identifier: String,

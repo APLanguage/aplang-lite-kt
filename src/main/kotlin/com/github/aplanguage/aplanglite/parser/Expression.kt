@@ -1,6 +1,7 @@
 package com.github.aplanguage.aplanglite.parser
 
 import com.github.aplanguage.aplanglite.interpreter.*
+import com.github.aplanguage.aplanglite.tokenizer.CodeToken
 import com.github.aplanguage.aplanglite.tokenizer.Token
 import com.github.aplanguage.aplanglite.tokenizer.ValueKeyword
 import com.github.aplanguage.aplanglite.utils.ASTPrinter
@@ -177,7 +178,26 @@ sealed class Expression {
       val call: GriddedObject<Expression>,
       val op: GriddedObject<Token.SignToken>,
       val expr: GriddedObject<Expression>
-    ) : DataExpression()
+    ) : DataExpression() {
+      override fun run(interpreter: Interpreter, scope: Scope): ReturnValue {
+        val value = interpreter.runExpression(scope, call.obj)
+        if (value !is ReturnValue.PropertiesNFunctionsValue.FieldValue) throw InterpreterException("You cannot assign a value to ${value.javaClass.simpleName}.")
+        val expr = interpreter.runExpression(scope, expr.obj)
+        value.varStructure.value = when (val tk = op.obj.codeToken) {
+          CodeToken.EQUAL -> expr
+          else -> {
+            if (value.value(interpreter, scope).supportBinaryOperation(tk)) {
+              value.varStructure.value!!.applyBinaryOp(tk, expr).also {
+                if (it == ReturnValue.Unit) throw InterpreterException("${tk.name} is not supported for ${value.varStructure.value?.javaClass?.simpleName} and ${expr.javaClass.simpleName}.")
+              }
+            } else {
+              throw InterpreterException("${value.varStructure.value?.javaClass?.simpleName} does not support ${tk.name}.")
+            }
+          }
+        }
+        return value
+      }
+    }
 
     data class IfExpression(
       val condition: GriddedObject<Expression>,
