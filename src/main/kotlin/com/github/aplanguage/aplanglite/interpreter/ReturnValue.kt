@@ -359,6 +359,12 @@ sealed class ReturnValue {
           return if (ret !is ReturnValue) ReturnValue.Unit
           else ret
         }
+
+        override fun toString() =
+          "NativeMethodCallable(${identifier}(${method.type().parameterList().joinToString(", ") { it.typeName.split(".").last() }
+          })${
+            method.type().returnType().simpleName
+          })"
       }
 
       class ClassMethodValue(identifier: String, val function: Structure.FunctionStructure) :

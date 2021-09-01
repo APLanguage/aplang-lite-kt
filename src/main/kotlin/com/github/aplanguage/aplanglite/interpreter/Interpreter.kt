@@ -32,8 +32,10 @@ class Interpreter {
           val lookup = MethodHandles.publicLookup().`in`(StdLibFunctions.javaClass);
           arrayOfMethods.map { method ->
             ReturnValue.CallableValue.CallableFunctionValue.NativeMethodCallable(method.name, lookup.unreflect(method))
-          }.associateBy { it.identifier } + structure.structures.filterIsInstance(Structure.ClassStructure::class.java).map {
+          }.associateBy { it.identifier } + structure.structures.filterIsInstance<Structure.ClassStructure>().map {
             ReturnValue.CallableValue.CallableFunctionValue.ClassCallValue(it)
+          }.associateBy { it.identifier } + structure.structures.filterIsInstance<Structure.FunctionStructure>().map {
+            it.toCallableClassFunction()
           }.associateBy { it.identifier }
         }
       )

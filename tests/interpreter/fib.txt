@@ -1,0 +1,10 @@
+fn fib(n: Int) {
+  if (n < 2) return n
+  return fib(n - 1) + fib(n - 2)
+}
+
+fn main() {
+  var a = now()
+  println(fib(40))
+  println(now() - a) // JLox takes 72 secs.
+}

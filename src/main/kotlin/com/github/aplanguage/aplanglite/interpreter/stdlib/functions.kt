@@ -17,4 +17,7 @@ object StdLibFunctions {
   fun rangeNatural(rightBound: ReturnValue.Number.IntegerNumber): ReturnValue.IterableValue {
     return ReturnValue.IterableValue((0..rightBound.number).map { ReturnValue.Number.IntegerNumber(it) })
   }
+
+  @JvmStatic
+  fun now() = ReturnValue.Number.IntegerNumber(System.currentTimeMillis())
 }
