@@ -1,36 +1,40 @@
 package com.github.aplanguage.aplanglite.compiler
 
+import com.github.aplanguage.aplanglite.utils.*
 import java.nio.ByteBuffer
 import kotlin.experimental.or
 
-private infix fun Int.nextBit(b: Boolean) = this shl 1 or if (b) 1 else 0
-private operator fun Boolean.plus(other: Boolean) = if (this) (if (other) 2 else 1) else if (other) 1 else 0
-private operator fun Int.plus(b: Boolean) = if (b) this + 1 else this
+sealed class Instruction : ByteBufferable {
 
-sealed class Instruction {
+  enum class NumberType {
+    U8, U16, U32, U64, I8, I16, I32, I64, Float, Double
+  }
 
-  abstract fun compile(): ByteBuffer
+  abstract fun byteSize(): Int
 
   object NoOp : Instruction() {
-    override fun compile() = ByteBuffer.allocate(1)
+    override fun toByteBuffer() = ByteBuffer.allocate(1)
+
+    override fun byteSize() = 1
   }
 
   data class Call(val static: Boolean, val ignore: Boolean, val wide: Boolean, val index: UShort) : Instruction() {
-    override fun compile() = ByteBuffer.allocate(if (wide) 3 else 2)
-      .put((0b0001 nextBit static nextBit ignore nextBit wide nextBit false).toByte())
+    override fun toByteBuffer() = ByteBuffer.allocate(if (wide) 3 else 2)
+      .put(0b0001 nextBit static nextBit ignore nextBit wide nextBit false)
       .apply {
-        if (wide) putShort(index.toShort())
+        if (wide) putShort(index)
         else put(index.toByte())
         flip()
       }
+
+    override fun byteSize() = if (wide) 3 else 2
   }
 
   data class Return(val target: Boolean, val index: UByte) : Instruction() {
-    override fun compile() = ByteBuffer.allocate(2)
-      .put(if (target) 0b00101000 else 0b00100000)
-      .putShort(index.toShort())
-      .flip()
+    override fun toByteBuffer() = ByteBuffer.allocate(2)
+      .put(if (target) 0b00101000 else 0b00100000).put(index).flip()
 
+    override fun byteSize() = 2
   }
 
   data class If(val condition: IfCondition, val wide: Boolean, val location: UShort) : Instruction() {
@@ -46,13 +50,15 @@ sealed class Instruction {
       JUMP
     }
 
-    override fun compile() = ByteBuffer.allocate(if (wide) 3 else 2)
+    override fun toByteBuffer() = ByteBuffer.allocate(if (wide) 3 else 2)
       .put(((if (wide) 0b00110001 else 0b00110000) or (condition.ordinal shr 1)).toByte())
       .apply {
-        if (wide) putShort(location.toShort())
+        if (wide) putShort(location)
         else put(location.toByte())
         flip()
       }
+
+    override fun byteSize() = if (wide) 3 else 2
   }
 
   data class Inversion(val target: Boolean, val dataType: InversionDataType, val index: UByte) : Instruction() {
@@ -63,30 +69,25 @@ sealed class Instruction {
       BOOL
     }
 
-    override fun compile() = ByteBuffer.allocate(2)
+    override fun toByteBuffer() = ByteBuffer.allocate(2)
       .put(((if (target) 0b01001000 else 0b01000000) or dataType.ordinal).toByte())
       .flip()
+
+    override fun byteSize() = 2
   }
 
   data class Conversion(val target: Boolean, val fromType: NumberType, val toType: NumberType, val index: UByte) : Instruction() {
-    enum class NumberType {
-      SBYTE,
-      UBYTE,
-      SINTEGER,
-      UINTEGER,
-      SBIG_INT,
-      UBIG_INT,
-      FLOAT,
-      BIG_FLOAT
-    }
 
-    override fun compile() = ByteBuffer.allocate(if (target) 3 else 2)
-      .put(((if (target) 0b01011000 else 0b01010000) or fromType.ordinal).toByte())
-      .put((toType.ordinal shl 5).toByte())
+
+    override fun toByteBuffer() = ByteBuffer.allocate(if (target) 3 else 2)
+      .put(if (target) 0b01011000 else 0b01010000)
+      .put(fromType.ordinal shl 4 or toType.ordinal)
       .apply {
-        if (target) put(index.toByte())
+        if (target) put(index)
         flip()
       }
+
+    override fun byteSize() = if (target) 3 else 2
   }
 
   data class Math(
@@ -97,7 +98,7 @@ sealed class Instruction {
     val secondOperandIndex: UByte,
     val targetRegister: Boolean,
     val targetIndex: UByte,
-    val type: Conversion.NumberType
+    val type: NumberType
   ) : Instruction() {
 
     enum class MathOperation(val id: Int) {
@@ -124,38 +125,66 @@ sealed class Instruction {
       GREATER_EQUAL(0b11011)
     }
 
-    override fun compile() = ByteBuffer.allocate(2 + firstOperandRegister + secondOperandRegister + targetRegister)
-      .putShort(((0b0110 nextBit firstOperandRegister nextBit secondOperandRegister nextBit targetRegister) shl 9 or operation.id or (type.ordinal shl 6)).toShort())
+    override fun toByteBuffer() = ByteBuffer.allocate(2 + firstOperandRegister + secondOperandRegister + targetRegister)
+      .putShort((0b0110 nextBit firstOperandRegister nextBit secondOperandRegister nextBit targetRegister) shl 9 or operation.id or (type.ordinal shl 5))
       .apply {
-        if (firstOperandRegister) put(firstOperandIndex.toByte())
-        if (secondOperandRegister) put(secondOperandIndex.toByte())
-        if (targetRegister) put(targetIndex.toByte())
+        if (firstOperandRegister) put(firstOperandIndex)
+        if (secondOperandRegister) put(secondOperandIndex)
+        if (targetRegister) put(targetIndex)
         flip()
       }
+
+    override fun byteSize() = 2 + firstOperandRegister + secondOperandRegister + targetRegister
   }
 
   data class LoadStore(val mode: Boolean, val index: UByte) : Instruction() {
-    override fun compile() = ByteBuffer.allocate(2).put(if (mode) 0b01111000 else 0b01110000).put(index.toByte()).flip()
+    override fun toByteBuffer() = ByteBuffer.allocate(2).put(if (mode) 0b01111000 else 0b01110000).put(index).flip()
 
     override fun toString(): String {
       return "LoadStore(mode=${if (mode) "Store" else "Load"}, index=$index)"
     }
+
+    override fun byteSize() = 2
+  }
+
+  data class GetPut(val mode: Boolean, val wide: Boolean, val referenceIndex: UShort, val register: Boolean, val registerIndex: UByte) :
+    Instruction() {
+    override fun toByteBuffer() =
+      ByteBuffer.allocate(2 + wide + register)
+        .put(if (mode) 0b01111000 else 0b01110000)
+        .apply {
+          if (wide) putShort(referenceIndex)
+          else put(registerIndex)
+        }.flip()
+
+    override fun byteSize() = 2 + wide + register
+    override fun toString(): String {
+      return "GetPut(mode=$mode, wide=$wide, referenceIndex=$referenceIndex, register=$register${if (register) ", registerIndex=$registerIndex" else ""})"
+    }
   }
 
   data class PushStack(val bytes: UByte) : Instruction() {
-    override fun compile() = ByteBuffer.allocate(1).put(0b10000000.toByte() or bytes.toByte()).flip()
+    override fun toByteBuffer() = ByteBuffer.allocate(1).put(0b10010000.toByte() or bytes.toByte()).flip()
+
+    override fun byteSize() = 1
   }
 
   data class PopStack(val bytes: UByte) : Instruction() {
-    override fun compile() = ByteBuffer.allocate(1).put(0b10010000.toByte() or bytes.toByte()).flip()
+    override fun toByteBuffer() = ByteBuffer.allocate(1).put(0b10100000.toByte() or bytes.toByte()).flip()
+
+    override fun byteSize() = 1
   }
 
   data class DuplicateStack(val bytes: UByte) : Instruction() {
-    override fun compile() = ByteBuffer.allocate(1).put(0b10100000.toByte() or bytes.toByte()).flip()
+    override fun toByteBuffer() = ByteBuffer.allocate(1).put(0b10110000.toByte() or bytes.toByte()).flip()
+
+    override fun byteSize() = 1
   }
 
   data class SwapStack(val bytes: UByte) : Instruction() {
-    override fun compile() = ByteBuffer.allocate(1).put(0b10110000.toByte() or bytes.toByte()).flip()
+    override fun toByteBuffer() = ByteBuffer.allocate(1).put(0b11000000.toByte() or bytes.toByte()).flip()
+
+    override fun byteSize() = 1
   }
 }
 
