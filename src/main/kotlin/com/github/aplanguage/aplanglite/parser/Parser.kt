@@ -387,8 +387,26 @@ class Parser(val scanner: TokenScanner, val underliner: Underliner?) {
       CodeToken.GREATER_GREATER,
       CodeToken.LESS_LESS,
       CodeToken.GREATER_GREATER_GREATER
-    ), this::unary_left
+    ), this::oop
   )
+
+  fun oop(): GriddedObject<Expression> {
+    val nextExpr = unary_left()
+    scanner.startSection()
+    val op = if (scanner.consumeMatchingCodeToken(CodeToken.BANG_IS) != null) Expression.DataExpression.OopExpression.OopOpType.NOT_IS
+    else if (scanner.consumeMatchingKeywordToken(Keyword.IS) != null) Expression.DataExpression.OopExpression.OopOpType.IS
+    else if (scanner.consumeMatchingKeywordToken(Keyword.AS) != null) Expression.DataExpression.OopExpression.OopOpType.CAST
+    else return nextExpr.also { scanner.endSection() }
+    val type = type() ?: throw ParserException(
+      "Type expected after $op. At ${scanner.positionPreviousCoords().endCoords()}"
+    )
+    scanner.endSection()
+    return GriddedObject.of(
+      nextExpr.startCoords(),
+      Expression.DataExpression.OopExpression(nextExpr, op, type),
+      type.endCoords()
+    )
+  }
 
   fun unary_left(): GriddedObject<Expression> {
     scanner.startSection()
@@ -397,8 +415,7 @@ class Parser(val scanner: TokenScanner, val underliner: Underliner?) {
       tk.startCoords(),
       Expression.DataExpression.UnaryOperation(tk, unary_left()),
       scanner.positionPreviousCoords().endCoords()
-    )
-      .also { scanner.endSection() }
+    ).also { scanner.endSection() }
   }
 
   fun call(): GriddedObject<Expression> {

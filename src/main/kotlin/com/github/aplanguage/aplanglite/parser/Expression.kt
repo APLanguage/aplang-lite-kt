@@ -220,6 +220,15 @@ sealed class Expression {
       }
     }
 
+    data class OopExpression(val expr: GriddedObject<Expression>, val oopOpType: OopOpType, val type: GriddedObject<Type>) : DataExpression() {
+      enum class OopOpType { CAST, IS, NOT_IS }
+
+      override fun run(interpreter: Interpreter, scope: Scope): ReturnValue {
+        if (oopOpType == OopOpType.CAST) return interpreter.runExpression(scope, expr.obj)
+        TODO()
+      }
+    }
+
     data class BinaryOperation(
       val first: GriddedObject<Expression>,
       val operations: List<Pair<GriddedObject<Token.SignToken>, GriddedObject<Expression>>>
@@ -231,7 +240,7 @@ sealed class Expression {
             throw InterpreterException("Binary Operation ${pair.first.obj.codeToken.name} (at ${pair.first.area()}) not supported on ${value.obj.javaClass.simpleName} at ${value.area()}.")
           }
           val secondValue = interpreter.runExpression(scope, pair.second.obj).let {
-            if(it is ReturnValue.PropertiesNFunctionsValue.FieldValue) it.value(interpreter, scope)
+            if (it is ReturnValue.PropertiesNFunctionsValue.FieldValue) it.value(interpreter, scope)
             else it
           }
           if (!secondValue.supportBinaryOperation(pair.first.obj.codeToken)) {

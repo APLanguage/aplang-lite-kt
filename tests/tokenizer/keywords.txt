@@ -2,7 +2,7 @@
   if, else, while, for, return, break,
   var,
   true, false,
-  class, super, this, as, is
+  class, super, this, as, !is, is
   use
 
   true,

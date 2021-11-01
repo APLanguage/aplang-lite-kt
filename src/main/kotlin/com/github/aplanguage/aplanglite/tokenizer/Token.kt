@@ -138,6 +138,11 @@ enum class CodeToken(val stringRepresentation: String) {
   BANG_EQUAL("!="),
 
   /**
+   * !is
+   */
+  BANG_IS("!is"),
+
+  /**
    * =
    */
   EQUAL("="),
