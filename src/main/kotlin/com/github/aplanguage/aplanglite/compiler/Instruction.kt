@@ -2,6 +2,7 @@ package com.github.aplanguage.aplanglite.compiler
 
 import com.github.aplanguage.aplanglite.utils.*
 import java.nio.ByteBuffer
+import java.nio.channels.ReadableByteChannel
 import kotlin.experimental.or
 
 sealed class Instruction : ByteBufferable {
@@ -28,6 +29,19 @@ sealed class Instruction : ByteBufferable {
       }
 
     override fun byteSize() = if (wide) 3 else 2
+
+    companion object {
+      fun read(id: Int, channel: ReadableByteChannel): Call {
+        val wide = id and 0b0010 != 0
+        return Call(
+          id and 0b1000 != 0,
+          id and 0b0100 != 0,
+          wide,
+          if (wide) ushortFromChannel(channel)!!
+          else ubyteFromChannel(channel)!!.toUShort()
+        )
+      }
+    }
   }
 
   data class Return(val target: Boolean, val index: UByte) : Instruction() {
@@ -51,7 +65,7 @@ sealed class Instruction : ByteBufferable {
     }
 
     override fun toByteBuffer() = ByteBuffer.allocate(if (wide) 3 else 2)
-      .put(((if (wide) 0b00110001 else 0b00110000) or (condition.ordinal shr 1)).toByte())
+      .put(((if (wide) 0b00111000 else 0b00110000) or condition.ordinal).toByte())
       .apply {
         if (wide) putShort(location)
         else put(location.toByte())
@@ -59,6 +73,13 @@ sealed class Instruction : ByteBufferable {
       }
 
     override fun byteSize() = if (wide) 3 else 2
+
+    companion object {
+      fun read(id: Int, channel: ReadableByteChannel): If {
+        val wide = id and 0b1000 != 0
+        return If(IfCondition.values()[id and 0b111], wide, if (wide) ushortFromChannel(channel)!! else ubyteFromChannel(channel)!!.toUShort())
+      }
+    }
   }
 
   data class Inversion(val target: Boolean, val dataType: InversionDataType, val index: UByte) : Instruction() {
@@ -88,15 +109,28 @@ sealed class Instruction : ByteBufferable {
       }
 
     override fun byteSize() = if (target) 3 else 2
+
+    companion object {
+      fun read(id: Int, channel: ReadableByteChannel): Conversion {
+        val target = id and 0b1000 != 0
+        val types = ubyteFromChannel(channel)!!.toInt()
+        return Conversion(
+          target,
+          NumberType.values()[types and 0xF0 shr 4],
+          NumberType.values()[types and 0x0F],
+          if (target) ubyteFromChannel(channel)!! else 0u
+        )
+      }
+    }
   }
 
   data class Math(
     val operation: MathOperation,
     val firstOperandRegister: Boolean,
-    val firstOperandIndex: UByte,
     val secondOperandRegister: Boolean,
-    val secondOperandIndex: UByte,
     val targetRegister: Boolean,
+    val firstOperandIndex: UByte,
+    val secondOperandIndex: UByte,
     val targetIndex: UByte,
     val type: NumberType
   ) : Instruction() {
@@ -135,6 +169,26 @@ sealed class Instruction : ByteBufferable {
       }
 
     override fun byteSize() = 2 + firstOperandRegister + secondOperandRegister + targetRegister
+
+    companion object {
+      fun read(id: Int, channel: ReadableByteChannel): Math {
+        val instruction = id shl 8 or ubyteFromChannel(channel)!!.toInt()
+        val firstOperandRegister = id and 0b1000 != 0
+        val secondOperandRegister = id and 0b0100 != 0
+        val targetRegister = id and 0b0010 != 0
+        val op = instruction and 0b11111
+        return Math(
+          MathOperation.values().first { it.id == op }, firstOperandRegister, secondOperandRegister, targetRegister,
+          if (firstOperandRegister) ubyteFromChannel(channel)!!
+          else 0u,
+          if (secondOperandRegister) ubyteFromChannel(channel)!!
+          else 0u,
+          if (targetRegister) ubyteFromChannel(channel)!!
+          else 0u,
+          NumberType.values()[instruction and 0b0000_0001_1110_0000]
+        )
+      }
+    }
   }
 
   data class LoadStore(val mode: Boolean, val index: UByte) : Instruction() {
@@ -147,19 +201,39 @@ sealed class Instruction : ByteBufferable {
     override fun byteSize() = 2
   }
 
-  data class GetPut(val mode: Boolean, val wide: Boolean, val referenceIndex: UShort, val register: Boolean, val registerIndex: UByte) :
+  data class GetPut(val mode: Boolean, val wide: Boolean, val register: Boolean, val referenceIndex: UShort, val registerIndex: UByte) :
     Instruction() {
     override fun toByteBuffer() =
       ByteBuffer.allocate(2 + wide + register)
         .put(if (mode) 0b01111000 else 0b01110000)
         .apply {
           if (wide) putShort(referenceIndex)
-          else put(registerIndex)
+          else
+            if (register) put(registerIndex)
+            else put(referenceIndex.toUByte())
         }.flip()
 
     override fun byteSize() = 2 + wide + register
     override fun toString(): String {
       return "GetPut(mode=$mode, wide=$wide, referenceIndex=$referenceIndex, register=$register${if (register) ", registerIndex=$registerIndex" else ""})"
+    }
+
+    companion object {
+      fun read(id: Int, channel: ReadableByteChannel): GetPut {
+        val wide = id and 0b1000 != 0
+        val register = id and 0b0010 != 0
+        return GetPut(
+          id and 0b1000 != 0,
+          wide,
+          register,
+          if (register)
+            if (wide) ushortFromChannel(channel)!!
+            else ubyteFromChannel(channel)!!.toUShort()
+          else 0u,
+          if (!register) ubyteFromChannel(channel)!!
+          else 0u
+        )
+      }
     }
   }
 
@@ -185,6 +259,28 @@ sealed class Instruction : ByteBufferable {
     override fun toByteBuffer() = ByteBuffer.allocate(1).put(0b11000000.toByte() or bytes.toByte()).flip()
 
     override fun byteSize() = 1
+  }
+
+  companion object {
+    fun read(channel: ReadableByteChannel): Instruction {
+      val id = ubyteFromChannel(channel)!!.toInt()
+      return when (id shr 4) {
+        0 -> NoOp
+        1 -> Call.read(id, channel)
+        2 -> Return(id and 0b1000 != 0, ubyteFromChannel(channel)!!)
+        3 -> If.read(id, channel)
+        4 -> Inversion(id and 0b1000 != 0, Inversion.InversionDataType.values()[id and 0b11], ubyteFromChannel(channel)!!)
+        5 -> Conversion.read(id, channel)
+        6 -> Math.read(id, channel)
+        7 -> LoadStore(id and 0b1000 != 0, ubyteFromChannel(channel)!!)
+        8 -> GetPut.read(id, channel)
+        9 -> PushStack((id and 0x0F).toUByte())
+        10 -> PopStack((id and 0x0F).toUByte())
+        11 -> DuplicateStack((id and 0x0F).toUByte())
+        12 -> SwapStack((id and 0x0F).toUByte())
+        else -> throw NotImplementedError("No Instruction for id $id.")
+      }
+    }
   }
 }
 
