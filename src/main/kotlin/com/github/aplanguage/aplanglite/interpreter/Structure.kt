@@ -21,12 +21,8 @@ sealed class Structure {
     val structure: GlobalStructure
   ) : Structure() {
     fun buildScope() = Scope(
-      structure.structures.filterIsInstance<VarStructure>().map {
-        it.toFieldValue()
-      }.associateBy { it.identifier }.toMutableMap(),
-      structure.structures.filterIsInstance<FunctionStructure>().map {
-        it.toCallableClassFunction()
-      }.associateBy { it.identifier }
+      structure.vars.map { it.toFieldValue() }.associateBy { it.identifier }.toMutableMap(),
+      structure.functions.map { it.toCallableClassFunction() }.associateBy { it.identifier }
     )
 
   }
@@ -44,5 +40,10 @@ sealed class Structure {
     fun toFieldValue() = ReturnValue.PropertiesNFunctionsValue.FieldValue(this)
   }
 
-  data class GlobalStructure(val imports: List<UseStructure>, val structures: List<Structure>) : Structure()
+  data class GlobalStructure(
+    val uses: List<UseStructure>,
+    val vars: List<VarStructure>,
+    val functions: List<FunctionStructure>,
+    val classes: List<ClassStructure>
+  ) : Structure()
 }

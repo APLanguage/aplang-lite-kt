@@ -10,9 +10,16 @@ import com.github.aplanguage.aplanglite.utils.GriddedObject
 import java.math.BigDecimal
 
 sealed class Expression {
-  data class Program(val uses: List<GriddedObject<Expression>>, val declarations: List<GriddedObject<Expression>>) : Expression()
+  data class Program(
+    val uses: List<GriddedObject<Declaration.UseDeclaration>>,
+    val vars: List<GriddedObject<Declaration.VarDeclaration>>,
+    val functions: List<GriddedObject<Declaration.FunctionDeclaration>>,
+    val classes: List<GriddedObject<Declaration.ClassDeclaration>>
+  ) : Expression()
 
-  data class Path(val identifiers: List<GriddedObject<Token.IdentifierToken>>)
+  data class Path(val identifiers: List<GriddedObject<Token.IdentifierToken>>) {
+    fun asString() = identifiers.joinToString(".") { it.obj.identifier }
+  }
 
   data class Type(val path: Path)
 

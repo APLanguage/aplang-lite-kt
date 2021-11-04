@@ -26,20 +26,20 @@ class Interpreter {
   fun compileAndRun(program: Expression.Program) {
     val structure = forgeStructure(program)
     val globalScope =
-      Scope(structure.structures.filterIsInstance(Structure.VarStructure::class.java).map { it.toFieldValue() }.associateBy { it.identifier }
+      Scope(structure.vars.map { it.toFieldValue() }.associateBy { it.identifier }
         .toMutableMap(),
         StdLibFunctions.javaClass.declaredMethods.let { arrayOfMethods ->
           val lookup = MethodHandles.publicLookup().`in`(StdLibFunctions.javaClass);
           arrayOfMethods.map { method ->
             ReturnValue.CallableValue.CallableFunctionValue.NativeMethodCallable(method.name, lookup.unreflect(method))
-          }.associateBy { it.identifier } + structure.structures.filterIsInstance<Structure.ClassStructure>().map {
+          }.associateBy { it.identifier } + structure.classes.map {
             ReturnValue.CallableValue.CallableFunctionValue.ClassCallValue(it)
-          }.associateBy { it.identifier } + structure.structures.filterIsInstance<Structure.FunctionStructure>().map {
+          }.associateBy { it.identifier } + structure.functions.map {
             it.toCallableClassFunction()
           }.associateBy { it.identifier }
         }
       )
-    val main = structure.structures.find { it is Structure.FunctionStructure && it.identifier == "main" }
+    val main = structure.functions.find { it.identifier == "main" }
     if (main == null) println("No Main-Method Found")
     else runFunction(main as Structure.FunctionStructure, arrayOf(), globalScope)
   }
@@ -82,25 +82,21 @@ class Interpreter {
       )
       else null
     },
-    program.declarations.mapNotNull { declaration ->
-      val obj = declaration.obj
-      if (obj !is Expression.Declaration) null
-      else {
-        when (obj) {
-          is Expression.Declaration.FunctionDeclaration -> {
-            Structure.FunctionStructure(obj.identifier.obj.identifier, obj.parameters.map { it.second.obj }, obj.type?.obj, obj)
-          }
-          is Expression.Declaration.ClassDeclaration -> {
-            Structure.ClassStructure(
-              obj.identifier.obj.identifier, obj.superTypes.map { it.obj }, forgeStructure(
-                obj.content?.obj ?: Expression.Program(listOf(), listOf())
-              )
-            )
-          }
-          is Expression.Declaration.VarDeclaration -> Structure.VarStructure(obj.identifier.obj.identifier, obj.type?.obj, obj.expr?.obj, null)
-          is Expression.Declaration.UseDeclaration -> null
-        }
-      }
+    program.vars.map { Structure.VarStructure(it.obj.identifier.obj.identifier, it.obj.type?.obj, it.obj.expr?.obj, null) },
+    program.functions.map {
+      Structure.FunctionStructure(
+        it.obj.identifier.obj.identifier,
+        it.obj.parameters.map { it.second.obj },
+        it.obj.type?.obj,
+        it.obj
+      )
+    },
+    program.classes.map {
+      Structure.ClassStructure(
+        it.obj.identifier.obj.identifier, it.obj.superTypes.map { it.obj }, forgeStructure(
+          it.obj.content?.obj ?: Expression.Program(listOf(), listOf(), listOf(), listOf())
+        )
+      )
     }
   )
 }

@@ -23,7 +23,12 @@ class Parser(val scanner: TokenScanner, val underliner: Underliner?) {
     if (uses.isEmpty() && declarations.isEmpty()) return null
     return GriddedObject.of(
       uses.ifEmpty { declarations }[0].startCoords(),
-      Expression.Program(uses, declarations),
+      Expression.Program(
+        uses.filterIsInstance<GriddedObject<Expression.Declaration.UseDeclaration>>(),
+        declarations.filterIsInstance<GriddedObject<Expression.Declaration.VarDeclaration>>(),
+        declarations.filterIsInstance<GriddedObject<Expression.Declaration.FunctionDeclaration>>(),
+        declarations.filterIsInstance<GriddedObject<Expression.Declaration.ClassDeclaration>>()
+      ),
       uses.ifEmpty { declarations }.last().endCoords()
     )
   }
