@@ -13,6 +13,7 @@ repositories {
 
 dependencies {
   implementation("com.google.code.gson:gson:2.8.8")
+  implementation("io.arrow-kt:arrow-core:1.0.1")
   testImplementation("org.jetbrains.kotlin:kotlin-test:1.5.21")
 }
 
