@@ -1,0 +1,27 @@
+var test: String = "ha"
+class A : AA.B.C { // <-
+  fn test() : AA.B.D.B {}
+  class B {
+    fn test(a: String) : B {}
+    class C {
+      fn test(a: String) : AA.B.C {}
+    }
+  }
+}
+
+class C
+
+class AA {
+  class B {
+    use A.B
+    fn test(a: String) : B {}
+    class C {
+      fn test(a: String) : B.C {}
+    }
+    class D {
+      class B {
+        class C
+      }
+    }
+  }
+}

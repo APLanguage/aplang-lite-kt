@@ -1,6 +1,7 @@
 package com.github.aplanguage.aplanglite.utils
 
-import com.github.aplanguage.aplanglite.interpreter.Interpreter
+import arrow.core.Either
+import com.github.aplanguage.aplanglite.compiler.Namespace
 import com.github.aplanguage.aplanglite.interpreter.ReturnValue
 import com.github.aplanguage.aplanglite.interpreter.Scope
 import com.github.aplanguage.aplanglite.interpreter.Structure
@@ -32,7 +33,7 @@ object ASTPrinter {
           else listOf("{", *it.map { entry ->
             val obj = convert(entry.value)
             if (obj.size == 1) listOf("  \"${entry.key}\" : ${obj.first()}")
-            else listOf("  \"${entry.key}\" : ${obj.first()}", *obj.drop(1).toTypedArray())
+            else listOf("  \"${entry.key}\" : ${obj.firstOrNull() ?: "[]"}", *obj.drop(1).toTypedArray())
           }.flatten().toTypedArray(), "  }")
         }
       is List<*> -> any.filterNotNull().map { convert(it) }.filter { it.isNotEmpty() }.let { elements ->
@@ -46,8 +47,10 @@ object ASTPrinter {
           element
         }.toMutableList()
       }.apply {
-        first()[0] = "[" + first().first()
-        last()[last().size - 1] = last().last() + "]"
+        if (isNotEmpty()) {
+          first()[0] = "[" + first().first()
+          last()[last().size - 1] = last().last() + "]"
+        }
       }.flatten()
       is Pair<*, *> -> listOf("(", *convert(any.first).map { "  $it" }.toTypedArray(), *convert(any.second).map { "  $it" }.toTypedArray(), ")")
       is ReturnValue.CallableValue -> listOf("CallableValue(${any})")
@@ -62,6 +65,26 @@ object ASTPrinter {
       )
       is Expression.Type -> listOf("Type(Path(${any.path.identifiers.joinToString(".") { it.obj.identifier }}))")
       is Expression.Path -> listOf("Path(${any.identifiers.joinToString(".") { it.obj.identifier }})")
+      is Namespace -> listOf(
+        when (any) {
+          is Namespace.Class -> "Class(${any.path()},"
+          else -> "Namespace("
+        },
+        *convert(
+          mapOf(
+            "uses" to any.uses,
+            "methods" to any.methods,
+            "fields" to any.fields,
+            "classes" to any.classes
+          )
+        ).drop(1).dropLast(1).toTypedArray(),
+        ")"
+      )
+      is Namespace.Field -> listOf("Field(${any.name}, ${any.type})")
+      is Namespace.Method -> listOf("Method(${any.name}, ${any.returnType})")
+      is Namespace.Use -> listOf("Use(${any.path}${if(any.star) " ,*" else ""}${if(any.alias != null) " ,${any.alias}" else ""})")
+      is Either.Left<*> -> listOf("Left(${any.value})")
+      is Either.Right<*> -> listOf("Right(${any.value})")
       else -> throw RuntimeException("shrug -> ${any.javaClass.simpleName} $any")
     }
   }

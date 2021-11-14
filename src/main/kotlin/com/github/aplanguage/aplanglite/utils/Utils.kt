@@ -13,6 +13,16 @@ inline fun <T> listOfUntilNull(generator: () -> T?): List<T> {
   return list.toList()
 }
 
+inline fun <T> listOfMapUntilNull(initial: T, generator: (T) -> T?): List<T> {
+  var temp: T? = generator(initial)
+  val list = mutableListOf<T>()
+  while (temp != null) {
+    list.add(temp)
+    temp = generator(temp)
+  }
+  return list.toList()
+}
+
 inline fun <T> listOfTimes(i: Int, generator: () -> T): List<T> {
   val list = mutableListOf<T>()
   if (i < 1) return list
@@ -20,6 +30,14 @@ inline fun <T> listOfTimes(i: Int, generator: () -> T): List<T> {
     list.add(generator())
   }
   return list
+}
+
+fun <T1, T2> List<T1>.compareEachElement(otherList: List<T2>, compare: (T1, T2) -> Boolean): Boolean {
+  if (this.size != otherList.size) return false
+  for (i in 0 until this.size) {
+    if (!compare(this[i], otherList[i])) return false
+  }
+  return true
 }
 
 infix fun Int.nextBit(b: Boolean) = this shl 1 or if (b) 1 else 0

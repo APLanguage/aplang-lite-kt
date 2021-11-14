@@ -1,0 +1,16 @@
+fn main() {
+   var person = Person()
+   println(person)
+   println("Before:", person.name)
+   person.name = "AP"
+   println("After:", person.name)
+   println(person.sayHi("everyone"))
+}
+
+class Person {
+  var name: String = "Default"
+
+  fn sayHi(target: String) : String {
+    return name + ": Hi, " + target + "!"
+  }
+}

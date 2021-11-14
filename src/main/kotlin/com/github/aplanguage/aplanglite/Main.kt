@@ -1,5 +1,7 @@
 package com.github.aplanguage.aplanglite
 
+import com.github.aplanguage.aplanglite.compiler.Namespace
+import com.github.aplanguage.aplanglite.compiler.Namespace.Companion.setParent
 import com.github.aplanguage.aplanglite.interpreter.Interpreter
 import com.github.aplanguage.aplanglite.parser.Parser
 import com.github.aplanguage.aplanglite.tokenizer.scan
@@ -13,19 +15,21 @@ import kotlin.io.path.isDirectory
 
 object Main {
 
+  val stdlib = Namespace(listOf(), listOf(), listOf(), listOf(
+    Namespace.Class("String", listOf(), listOf(), listOf(), listOf(), mutableListOf())
+  )).apply { setParent() }
+
   @JvmStatic
   fun main(args: Array<String>) {
     if (args.size == 3) {
-      println("TOKENIZER:")
       tokenizerTests(Path.of(args[0]))
-      println("PARSER:")
       parserTests(Path.of(args[1]))
-      println("INTERPRETER:")
-      interpreterTests(Path.of(args[2]))
+      // interpreterTests(Path.of(args[2]))
     }
   }
 
   private fun tokenizerTests(path: Path) {
+    println("TOKENIZER:")
     if (path.isDirectory()) {
       val files = path.toFile().walkTopDown().filter { it.isFile }.toList()
       println("Scanning " + files.size + " files in " + path)
@@ -52,6 +56,7 @@ object Main {
   }
 
   private fun parserTests(path: Path) {
+    println("PARSER:")
     if (path.isDirectory()) {
       val files = path.toFile().walkTopDown().filter { it.isFile }.toList()
       println("Scanning " + files.size + " files in " + path)
@@ -64,7 +69,17 @@ object Main {
           continue
         }
         println("Parsing...")
-        ASTPrinter.print(Parser(TokenScanner(scan.tokens), Underliner(Files.readAllLines(file.toPath()))).program())
+        val code = Parser(TokenScanner(scan.tokens), Underliner(Files.readAllLines(file.toPath()))).program()
+        println("As AST:")
+        ASTPrinter.print(code)
+        if (code != null) {
+          println("Structure")
+          val namespace = Namespace.ofProgram(code.obj)
+          ASTPrinter.print(namespace)
+          println("Resolving...")
+          namespace.resolve(setOf(stdlib))
+          ASTPrinter.print(namespace)
+        }
         println("-------------------------------------")
       }
     } else {
@@ -76,12 +91,23 @@ object Main {
         return
       }
       println("Parsing...")
-      ASTPrinter.print(Parser(TokenScanner(scan.tokens), Underliner(Files.readAllLines(path))).program())
+      val code = Parser(TokenScanner(scan.tokens), Underliner(Files.readAllLines(path))).program()
+      println("As AST:")
+      ASTPrinter.print(code)
+      if (code != null) {
+        println("Structure")
+        val namespace = Namespace.ofProgram(code.obj)
+        ASTPrinter.print(namespace)
+        println("Resolving...")
+        namespace.resolve(setOf(stdlib))
+        ASTPrinter.print(namespace)
+      }
       println("-------------------------------------")
     }
   }
 
   private fun interpreterTests(path: Path) {
+    println("INTERPRETER:")
     if (path.isDirectory()) {
       val files = path.toFile().walkTopDown().filter { it.isFile }.toList()
       println("Scanning " + files.size + " files in " + path)
@@ -123,4 +149,6 @@ object Main {
     }
   }
 }
+
+
 

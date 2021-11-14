@@ -1,4 +1,17 @@
-use a
-use b.c
-use d.*
-use e.f.*
+use A
+use B.C
+use D.*
+use E.F.*
+
+class A {
+  class Z1
+}
+class B { class C {
+  class Z2
+}}
+class D {
+  class Z3
+}
+class E { class F {
+  class Z4
+}}
