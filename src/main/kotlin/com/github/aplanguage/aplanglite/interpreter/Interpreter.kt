@@ -74,13 +74,12 @@ class Interpreter {
   }
 
   fun forgeStructure(program: Expression.Program): Structure.GlobalStructure = Structure.GlobalStructure(
-    program.uses.mapNotNull { useDeclaration ->
+    program.uses.map { useDeclaration ->
       val obj = useDeclaration.obj
-      if (obj is Expression.Declaration.UseDeclaration) Structure.UseStructure(
+      Structure.UseStructure(
         obj.path.obj.identifiers.joinToString(".") { it.obj.identifier }, obj.all,
         obj.asOther?.obj?.identifier
       )
-      else null
     },
     program.vars.map { Structure.VarStructure(it.obj.identifier.obj.identifier, it.obj.type?.obj, it.obj.expr?.obj, null) },
     program.functions.map {
@@ -94,7 +93,7 @@ class Interpreter {
     program.classes.map {
       Structure.ClassStructure(
         it.obj.identifier.obj.identifier, it.obj.superTypes.map { it.obj }, forgeStructure(
-          it.obj.content?.obj ?: Expression.Program(listOf(), listOf(), listOf(), listOf())
+          it.obj.content?.obj ?: Expression.Program(null, listOf(), listOf(), listOf(), listOf())
         )
       )
     }

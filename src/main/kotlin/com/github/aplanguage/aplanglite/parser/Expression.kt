@@ -11,6 +11,7 @@ import java.math.BigDecimal
 
 sealed class Expression {
   data class Program(
+    val packageDeclaration: GriddedObject<PackageDeclaration>?,
     val uses: List<GriddedObject<Declaration.UseDeclaration>>,
     val vars: List<GriddedObject<Declaration.VarDeclaration>>,
     val functions: List<GriddedObject<Declaration.FunctionDeclaration>>,
@@ -20,6 +21,8 @@ sealed class Expression {
   data class Path(val identifiers: List<GriddedObject<Token.IdentifierToken>>) {
     fun asString() = identifiers.joinToString(".") { it.obj.identifier }
   }
+
+  data class PackageDeclaration(val path: GriddedObject<Path>)
 
   data class Type(val path: Path)
 

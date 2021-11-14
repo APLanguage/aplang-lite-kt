@@ -18,19 +18,37 @@ class Parser(val scanner: TokenScanner, val underliner: Underliner?) {
   fun errors() = errors.toList()
 
   fun program(): GriddedObject<Expression.Program>? {
+    val packageDeclaration = packageDeclaration()
     val uses = listOfUntilNull(this::use_decl)
     val declarations = listOfUntilNull(this::declaration)
     if (uses.isEmpty() && declarations.isEmpty()) return null
     return GriddedObject.of(
       uses.ifEmpty { declarations }[0].startCoords(),
-      Expression.Program(
-        uses.filterIsInstance<GriddedObject<Expression.Declaration.UseDeclaration>>(),
-        declarations.filterIsInstance<GriddedObject<Expression.Declaration.VarDeclaration>>(),
-        declarations.filterIsInstance<GriddedObject<Expression.Declaration.FunctionDeclaration>>(),
-        declarations.filterIsInstance<GriddedObject<Expression.Declaration.ClassDeclaration>>()
+      Expression.Program(packageDeclaration,
+        uses.filter { it.obj is Expression.Declaration.UseDeclaration } as List<GriddedObject<Expression.Declaration.UseDeclaration>>,
+        declarations.filter { it.obj is Expression.Declaration.VarDeclaration } as List<GriddedObject<Expression.Declaration.VarDeclaration>>,
+        declarations.filter { it.obj is Expression.Declaration.FunctionDeclaration } as List<GriddedObject<Expression.Declaration.FunctionDeclaration>>,
+        declarations.filter { it.obj is Expression.Declaration.ClassDeclaration } as List<GriddedObject<Expression.Declaration.ClassDeclaration>>
       ),
       uses.ifEmpty { declarations }.last().endCoords()
     )
+  }
+
+  fun packageDeclaration() : GriddedObject<Expression.PackageDeclaration>? {
+    scanner.startSection()
+    val packageTk = scanner.consumeMatchingKeywordToken(Keyword.PACKAGE)
+    if (packageTk == null) {
+      scanner.endSection(true)
+      return null
+    }
+    val path = path() ?: throw ParserException("Expected path after package keyword")
+    scanner.endSection()
+    return GriddedObject.of(packageTk.startCoords(), Expression.PackageDeclaration(path), path.endCoords()).also {
+      if(it.endCoords().y != scanner.peekNextCoords().startCoords().y) {
+        errors.add(ParserError(ParserException("Expected end of line after package declaration"), it.endCoords().toArea(), "Expected end of line after package declaration"))
+
+      }
+    }
   }
 
   fun declaration(): GriddedObject<Expression>? = class_decl() ?: fun_decl() ?: var_decl()
@@ -57,6 +75,7 @@ class Parser(val scanner: TokenScanner, val underliner: Underliner?) {
     } else if (!scanner.isPositionEOF() && scanner.positionPreviousCoords().endCoords().y == scanner.positionCoords().startCoords().y) {
       throw ParserException("After an class statement (with no braces) there must be an new-line. ${scanner.positionPreviousCoords().endCoords()}")
     }
+    scanner.endSection()
     return GriddedObject.of(
       classTk.startCoords(),
       Expression.Declaration.ClassDeclaration(identifier, superTypes, program),

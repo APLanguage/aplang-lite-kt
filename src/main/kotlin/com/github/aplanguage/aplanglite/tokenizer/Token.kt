@@ -306,7 +306,7 @@ enum class Keyword {
   IF, ELSE, WHILE, FOR, RETURN, BREAK,
   VAR,
   CLASS, SUPER, THIS, AS, IS,
-  USE
+  PACKAGE, USE
 }
 
 enum class ValueKeyword {
