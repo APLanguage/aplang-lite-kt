@@ -2,7 +2,6 @@ package com.github.aplanguage.aplanglite
 
 import com.github.aplanguage.aplanglite.compiler.Namespace
 import com.github.aplanguage.aplanglite.compiler.Namespace.Companion.setParent
-import com.github.aplanguage.aplanglite.interpreter.Interpreter
 import com.github.aplanguage.aplanglite.parser.Parser
 import com.github.aplanguage.aplanglite.tokenizer.scan
 import com.github.aplanguage.aplanglite.utils.ASTPrinter
@@ -102,49 +101,6 @@ object Main {
         namespace.resolve(setOf(stdlib))
         ASTPrinter.print(namespace)
       }
-      println("-------------------------------------")
-    }
-  }
-
-  private fun interpreterTests(path: Path) {
-    println("INTERPRETER:")
-    if (path.isDirectory()) {
-      val files = path.toFile().walkTopDown().filter { it.isFile }.toList()
-      println("Scanning " + files.size + " files in " + path)
-      for (file in files) {
-        println("Scanning " + file.name)
-        val scan = scan(CharScanner(Files.readString(file.toPath())));
-        if (scan.liteErrors.isNotEmpty()) {
-          println("Errors found: ${scan.liteErrors}")
-          println("-------------------------------------")
-          continue
-        }
-        println("Parsing...")
-        val program = Parser(TokenScanner(scan.tokens), Underliner(Files.readAllLines(file.toPath()))).program()
-        if (program == null) {
-          println("Could not be parsed!")
-          continue
-        }
-        println("Executing....")
-        Interpreter().compileAndRun(program.obj)
-        println("-------------------------------------")
-      }
-    } else {
-      println("Scanning " + path)
-      val scan = scan(CharScanner(Files.readString(path)));
-      if (scan.liteErrors.isNotEmpty()) {
-        println("Errors found: ${scan.liteErrors}")
-        println("-------------------------------------")
-        return
-      }
-      println("Parsing...")
-      val program = Parser(TokenScanner(scan.tokens), Underliner(Files.readAllLines(path))).program()
-      if (program == null) {
-        println("Could not be parsed!")
-        return
-      }
-      println("Executing....")
-      Interpreter().compileAndRun(program.obj)
       println("-------------------------------------")
     }
   }
