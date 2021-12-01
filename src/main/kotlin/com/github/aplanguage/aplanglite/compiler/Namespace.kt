@@ -2,10 +2,24 @@ package com.github.aplanguage.aplanglite.compiler
 
 import arrow.core.Either
 import arrow.core.handleError
-import com.github.aplanguage.aplanglite.parser.Expression
+import com.github.aplanguage.aplanglite.compiler.stdlib.PrimitiveType
+import com.github.aplanguage.aplanglite.compiler.typechecking.StatementTypeChecker
+import com.github.aplanguage.aplanglite.compiler.typechecking.TypeCheckException
+import com.github.aplanguage.aplanglite.compiler.typechecking.TypeChecker
+import com.github.aplanguage.aplanglite.parser.expression.Expression
+import com.github.aplanguage.aplanglite.parser.expression.Statement
+import com.github.aplanguage.aplanglite.utils.Area
 import com.github.aplanguage.aplanglite.utils.GriddedObject
 
-open class Namespace(val uses: List<Use>, val fields: List<Field>, val methods: List<Method>, val classes: List<Class>) {
+class TypeResolveException(message: String, val area: Area? = null) : Exception(message)
+
+open class Namespace(
+  val pack: String?,
+  val uses: List<Use>,
+  val fields: MutableList<Field>,
+  val methods: MutableList<Method>,
+  val classes: MutableList<Class>
+) {
   data class Use(var path: Either<GriddedObject<String>, Class>, val star: Boolean, val alias: GriddedObject<String>? = null) {
     fun targetClasses() =
       (path.orNull() ?: throw IllegalStateException("The use path ${(path as Either.Left).value}${if (star) ".*" else ""} was not resolved!")).let {
@@ -20,34 +34,80 @@ open class Namespace(val uses: List<Use>, val fields: List<Field>, val methods: 
     }.filter { it.name == path.last() }
   }
 
+  interface Typeable {
+    fun type(): Class?
+  }
+
   data class Method(
     val name: String,
-    val parameters: MutableList<Either<GriddedObject<String>, Class>>,
+    val parameters: MutableList<Pair<String, Either<GriddedObject<String>, Class>>>,
     var returnType: Either<GriddedObject<String>, Class>?,
-    val exprs: Either<List<GriddedObject<Expression.Statement>>, List<Instruction>>
-  ) {
+    val exprs: Either<List<GriddedObject<Statement>>, List<Instruction>>
+  ) : Typeable {
     lateinit var parent: Namespace
+
+    fun asDescriptorString(): String {
+      return parent.path().let { if (it.isEmpty()) "" else "$it#" } + name + "(${
+        parameters.joinToString(", ") { (_, type) ->
+          type.fold({ it.obj }, { it.path() })
+        }
+      })" + (returnType?.fold({ ": $it" }, { ": ${it.path()}" }) ?: "")
+    }
+
+    override fun type(): Class? = returnType?.let {
+      it.orNull() ?: throw TypeResolveException(
+        "The return type ${(it as Either.Left).value} of ${asDescriptorString()} was not resolved!",
+        it.value.area()
+      )
+    }
+
+    fun typeCheck(namespaces: Set<Namespace>) {
+      val checker = StatementTypeChecker(TypeChecker(NameResolver(parent, namespaces.toList(), Frame(type()).apply {
+        parameters.forEach { (name, type) ->
+          type.fold({ throw IllegalStateException("Parameters not resolved!") }, { register(name, it) })
+        }
+      })))
+      exprs.mapLeft { it.forEach { it.obj.visit(checker) } }
+    }
   }
 
   data class Field(
     val name: String,
     var type: Either<GriddedObject<String>, Class>?,
-    val expr: Either<GriddedObject<Expression>, Either<Expression, List<Instruction>>>?
-  ) {
+    var expr: Either<GriddedObject<Expression>, List<Instruction>>?
+  ) : Typeable {
     lateinit var parent: Namespace
+
+    fun asDescriptorString() = "${parent.path().let { if (it.isEmpty()) "" else "$it%" }}$name:${type?.orNull()?.path() ?: "?"}"
+
+    override fun type(): Class = type?.orNull() ?: throw TypeResolveException("The type of ${asDescriptorString()} was not resolved!")
+    fun typeCheck(namespaces: Set<Namespace>) {
+      expr?.mapLeft { TypeChecker(NameResolver(parent, namespaces.toList(), Frame(type()))) }
+    }
   }
 
   class Class(
     val name: String,
     uses: List<Use>,
-    methods: List<Method>,
-    fields: List<Field>,
-    classes: List<Class>,
+    fields: MutableList<Field>,
+    methods: MutableList<Method>,
+    classes: MutableList<Class>,
     val supers: MutableList<Either<GriddedObject<String>, Class>>
-  ) : Namespace(uses, fields, methods, classes) {
+  ) : Namespace(null, uses, fields, methods, classes) {
     lateinit var parent: Namespace
 
+    fun allSuperClasses(): List<Class> = supers.map {
+      it.fold({ throw TypeResolveException("The type of ${it.obj} was not resolved.", it.area()) },
+        { it })
+    } + supers.flatMap {
+      it.fold({ throw TypeResolveException("The type of ${it.obj} was not resolved.", it.area()) },
+        { it.allSuperClasses() })
+    }
+
     override fun resolveFieldsInScope(name: String): List<Field> = findFields(name) + root().resolveFieldsInScope(name)
+
+    override fun resolveMethodsInScope(name: String): List<Method> =
+      findMethods(name) + supers.flatMap { it.orNull()!!.resolveMethodsInScope(name) } + root().resolveMethodsInScope(name)
 
     override fun resolve(namespaces: Set<Namespace>) {
       super.resolve(namespaces)
@@ -87,6 +147,8 @@ open class Namespace(val uses: List<Use>, val fields: List<Field>, val methods: 
         path, this
       ) + if (path().endsWith(path.joinToString("."))) listOf(this) else listOf()
     }
+
+    fun primitiveType() = PrimitiveType.ofClass(this)
   }
 
   fun resolveClassPath(path: String) = resolveClassPath(path.split("."))
@@ -110,43 +172,44 @@ open class Namespace(val uses: List<Use>, val fields: List<Field>, val methods: 
 
   open fun resolveFieldsInScope(name: String) = findFields(name)
 
+  open fun resolveMethodsInScope(name: String) = findMethods(name)
+
   open fun root() = this
 
 
   companion object {
-    fun ofProgram(expression: Expression.Program): Namespace {
+    fun ofProgram(pack: String?, expression: Expression.Program): Namespace {
       val uses = expression.uses.map {
         Use(Either.Left(it.obj.path.repack { it.asString() }), it.obj.all, it.obj.asOther)
       }
       val classes = expression.classes.map {
-        val namespace = ofProgram(it.obj.asProgram())
+        val namespace = ofProgram(null, it.obj.asProgram())
         Class(
           it.obj.identifier.obj.identifier,
           namespace.uses,
-          namespace.methods,
           namespace.fields,
+          namespace.methods,
           namespace.classes,
           it.obj.superTypes.map { Either.Left(it.repack { it.path.asString() }) }.toMutableList()
         )
       }
       val fields = expression.vars.map { varDeclr ->
         Field(
-          varDeclr.obj.identifier.obj.identifier,
-          varDeclr.obj.type?.repack { it.path.asString() }?.let { Either.Left(it) },
+          varDeclr.obj.identifier.obj,
+          varDeclr.obj.type.mapLeft { it!!.repack { it.path.asString() } },
           varDeclr.obj.expr?.let { Either.Left(it) })
       }
       val methods = expression.functions.map { funcDeclr ->
         funcDeclr.obj.run {
           Method(
             identifier.obj.identifier,
-            parameters.map { Either.Left(it.second.repack { it.path.asString() }) }.toMutableList(),
+            parameters.map { it.first.obj to Either.Left(it.second.repack { it.path.asString() }) }.toMutableList(),
             type?.repack { it.path.asString() }?.let { Either.Left(it) },
             Either.Left(code)
           )
         }
-
       }
-      return Namespace(uses, fields, methods, classes).apply { setParent() }
+      return Namespace(pack, uses, fields.toMutableList(), methods.toMutableList(), classes.toMutableList()).apply { setParent() }
     }
 
     fun Class.setParent(namespace: Namespace) {
@@ -177,8 +240,8 @@ open class Namespace(val uses: List<Use>, val fields: List<Field>, val methods: 
       }
     }
     methods.forEach {
-      it.parameters.replaceAll {
-        it.handleError { path ->
+      it.parameters.replaceAll { (name, type) ->
+        name to type.handleError { path ->
           val resolved = resolveClassPath(path.obj) + namespaces.flatMap { it.resolveInnerClassPath(path.obj) }
           if (resolved.isEmpty()) {
             throw Exception("Could not resolve class path $path for parameter")
@@ -193,6 +256,24 @@ open class Namespace(val uses: List<Use>, val fields: List<Field>, val methods: 
       }
     }
     classes.forEach { it.resolve(namespaces) }
+  }
+
+  fun typeCheck(namespaces: Set<Namespace>): List<Pair<String, List<Area>>> {
+    return classes.flatMap { it.typeCheck(namespaces) } + fields.mapNotNull {
+      try {
+        it.typeCheck(namespaces)
+        null
+      } catch (e: TypeCheckException) {
+        e.message!! to e.areas
+      }
+    } + methods.mapNotNull {
+      try {
+        it.typeCheck(namespaces)
+        null
+      } catch (e: TypeCheckException) {
+        e.message!! to e.areas
+      }
+    }
   }
 
   open fun path() = ""

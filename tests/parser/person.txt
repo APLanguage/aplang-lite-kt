@@ -1,6 +1,6 @@
 fn main() {
    var person = Person()
-   println(person)
+   println(person.toString())
    println("Before:", person.name)
    person.name = "AP"
    println("After:", person.name)
@@ -10,7 +10,11 @@ fn main() {
 class Person {
   var name: String = "Default"
 
-  fn sayHi(target: String) : String {
+  fn sayHi(target: I64) : String {
     return name + ": Hi, " + target + "!"
+  }
+
+  fn toString() : String {
+    return "Person(" + name + ")"
   }
 }

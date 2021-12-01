@@ -1,7 +1,7 @@
 package com.github.aplanguage.aplanglite
 
 import com.github.aplanguage.aplanglite.compiler.Namespace
-import com.github.aplanguage.aplanglite.compiler.Namespace.Companion.setParent
+import com.github.aplanguage.aplanglite.compiler.stdlib.StandardLibrary
 import com.github.aplanguage.aplanglite.parser.Parser
 import com.github.aplanguage.aplanglite.tokenizer.scan
 import com.github.aplanguage.aplanglite.utils.ASTPrinter
@@ -14,10 +14,6 @@ import kotlin.io.path.isDirectory
 
 object Main {
 
-  val stdlib = Namespace(listOf(), listOf(), listOf(), listOf(
-    Namespace.Class("String", listOf(), listOf(), listOf(), listOf(), mutableListOf())
-  )).apply { setParent() }
-
   @JvmStatic
   fun main(args: Array<String>) {
     if (args.size == 3) {
@@ -29,6 +25,7 @@ object Main {
 
   private fun tokenizerTests(path: Path) {
     println("TOKENIZER:")
+    return
     if (path.isDirectory()) {
       val files = path.toFile().walkTopDown().filter { it.isFile }.toList()
       println("Scanning " + files.size + " files in " + path)
@@ -68,16 +65,24 @@ object Main {
           continue
         }
         println("Parsing...")
-        val code = Parser(TokenScanner(scan.tokens), Underliner(Files.readAllLines(file.toPath()))).program()
-        println("As AST:")
-        ASTPrinter.print(code)
+        val underliner = Underliner(Files.readAllLines(file.toPath()))
+        val code = Parser(TokenScanner(scan.tokens), underliner ).program()
+//        println("As AST:")
+//        ASTPrinter.print(code)
         if (code != null) {
-          println("Structure")
-          val namespace = Namespace.ofProgram(code.obj)
-          ASTPrinter.print(namespace)
+//          println("Structure")
+          val namespace = Namespace.ofProgram(null, code.obj)
+//          ASTPrinter.print(namespace)
           println("Resolving...")
-          namespace.resolve(setOf(stdlib))
-          ASTPrinter.print(namespace)
+          namespace.resolve(setOf(StandardLibrary.STD_LIB))
+//          ASTPrinter.print(namespace)
+          println("Type checking...")
+          namespace.typeCheck(setOf(StandardLibrary.STD_LIB)).forEach { (msg, areas)->
+            for (area in areas) {
+              underliner.underline(area)
+            }
+            println(msg)
+          }
         }
         println("-------------------------------------")
       }
@@ -95,10 +100,10 @@ object Main {
       ASTPrinter.print(code)
       if (code != null) {
         println("Structure")
-        val namespace = Namespace.ofProgram(code.obj)
+        val namespace = Namespace.ofProgram(null, code.obj)
         ASTPrinter.print(namespace)
         println("Resolving...")
-        namespace.resolve(setOf(stdlib))
+        namespace.resolve(setOf(StandardLibrary.STD_LIB))
         ASTPrinter.print(namespace)
       }
       println("-------------------------------------")

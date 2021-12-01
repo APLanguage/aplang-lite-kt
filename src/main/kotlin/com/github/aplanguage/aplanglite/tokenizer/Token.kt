@@ -1,5 +1,6 @@
 package com.github.aplanguage.aplanglite.tokenizer
 
+import com.github.aplanguage.aplanglite.compiler.stdlib.PrimitiveType
 import java.math.BigInteger
 
 sealed class Token {
@@ -11,17 +12,32 @@ sealed class Token {
 
   sealed class ValueToken : Token() {
 
-    data class ValueKeywordToken(val keyword: ValueKeyword) : ValueToken()
+    abstract fun asPrimitive(): PrimitiveType
+
+    data class ValueKeywordToken(val keyword: ValueKeyword) : ValueToken() {
+      override fun asPrimitive() = when (keyword) {
+        ValueKeyword.TRUE, ValueKeyword.FALSE -> PrimitiveType.BOOL
+        else -> PrimitiveType.NOTHING
+      }
+    }
 
     sealed class LiteralToken : ValueToken() {
 
-      data class StringToken(val string: String) : LiteralToken()
+      data class StringToken(val string: String) : LiteralToken() {
+        override fun asPrimitive(): PrimitiveType = PrimitiveType.STRING
+      }
 
-      data class CharToken(val char: String) : LiteralToken()
+      data class CharToken(val char: String) : LiteralToken() {
+        override fun asPrimitive(): PrimitiveType = PrimitiveType.CHAR
+      }
 
-      data class IntegerToken(val int: BigInteger) : LiteralToken()
+      data class IntegerToken(val int: BigInteger) : LiteralToken() {
+        override fun asPrimitive(): PrimitiveType = PrimitiveType.I32
+      }
 
-      data class FloatToken(val first: BigInteger, val second: BigInteger) : LiteralToken()
+      data class FloatToken(val first: BigInteger, val second: BigInteger) : LiteralToken() {
+        override fun asPrimitive(): PrimitiveType = PrimitiveType.F32
+      }
     }
   }
 }

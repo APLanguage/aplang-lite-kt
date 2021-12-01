@@ -32,12 +32,19 @@ inline fun <T> listOfTimes(i: Int, generator: () -> T): List<T> {
   return list
 }
 
+fun <A, B> Iterable<A>.allZip(other: Iterable<B>, check: (A, B) -> Boolean): Boolean {
+  val iterator1 = this.iterator()
+  val iterator2 = other.iterator()
+  while (iterator1.hasNext() && iterator2.hasNext()) {
+    if (!check(iterator1.next(), iterator2.next())) return false
+  }
+  return !iterator1.hasNext() && !iterator2.hasNext()
+}
+
+
 fun <T1, T2> List<T1>.compareEachElement(otherList: List<T2>, compare: (T1, T2) -> Boolean): Boolean {
   if (this.size != otherList.size) return false
-  for (i in 0 until this.size) {
-    if (!compare(this[i], otherList[i])) return false
-  }
-  return true
+  return (0 until this.size).all { compare(this[it], otherList[it]) }
 }
 
 infix fun Int.nextBit(b: Boolean) = this shl 1 or if (b) 1 else 0
