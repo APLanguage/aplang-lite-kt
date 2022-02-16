@@ -493,7 +493,7 @@ sealed class Instruction : ByteBufferable {
         value.putIntoByteBuffer(this)
       }.flip()
 
-      override fun byteSize() = 1 + value.asPrimitive().registerType.byteSize + (target is Target.Field && target.index > 0xFFu)
+      override fun byteSize() = 2 + value.asPrimitive().registerType.byteSize + (target is Target.Field && target.index > 0xFFu)
     }
 
     /**
@@ -515,7 +515,7 @@ sealed class Instruction : ByteBufferable {
         value.putIntoByteBuffer(this)
       }.flip()
 
-      override fun byteSize() = 1 + value.asPrimitive().registerType.byteSize + (target is Target.Field && target.index > 0xFFu)
+      override fun byteSize() = 2 + value.asPrimitive().registerType.byteSize + (target is Target.Field && target.index > 0xFFu)
     }
 
     /**
