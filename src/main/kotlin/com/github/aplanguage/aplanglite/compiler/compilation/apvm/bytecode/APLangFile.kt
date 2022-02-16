@@ -1,8 +1,8 @@
-package com.github.aplanguage.aplanglite.compiler.bytecode
+package com.github.aplanguage.aplanglite.compiler.compilation.apvm.bytecode
 
-import com.github.aplanguage.aplanglite.compiler.bytecode.ReferenceInfo.ClassReference.PrimitiveReference
-import com.github.aplanguage.aplanglite.compiler.compilation.Pool
-import com.github.aplanguage.aplanglite.compiler.compilation.RegisterAllocator
+import com.github.aplanguage.aplanglite.compiler.compilation.apvm.bytecode.ReferenceInfo.ClassReference.PrimitiveReference
+import com.github.aplanguage.aplanglite.compiler.compilation.apvm.Pool
+import com.github.aplanguage.aplanglite.compiler.compilation.apvm.RegisterAllocator
 import com.github.aplanguage.aplanglite.compiler.naming.Namespace
 import com.github.aplanguage.aplanglite.utils.ByteBufferable
 import com.github.aplanguage.aplanglite.utils.byte

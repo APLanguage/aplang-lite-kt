@@ -1,9 +1,8 @@
-package com.github.aplanguage.aplanglite.compiler.bytecode
+package com.github.aplanguage.aplanglite.compiler.compilation.apvm.bytecode
 
-import com.github.aplanguage.aplanglite.compiler.bytecode.Instruction.*
-import com.github.aplanguage.aplanglite.compiler.compilation.Pool
+import com.github.aplanguage.aplanglite.compiler.compilation.apvm.bytecode.Instruction.*
+import com.github.aplanguage.aplanglite.compiler.compilation.apvm.Pool
 import com.github.aplanguage.aplanglite.tokenizer.Token
-import com.github.aplanguage.aplanglite.utils.listOfMapUntilNull
 
 interface InstructionVisitor<C, R> {
   fun visit(instruction: NoOp, context: C): R

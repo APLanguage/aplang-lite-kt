@@ -1,7 +1,7 @@
 package com.github.aplanguage.aplanglite.compiler.naming
 
 import arrow.core.Either
-import com.github.aplanguage.aplanglite.compiler.compilation.RegisterAllocator
+import com.github.aplanguage.aplanglite.compiler.compilation.apvm.RegisterAllocator
 import com.github.aplanguage.aplanglite.compiler.stdlib.StandardLibrary.STD_LIB
 import com.github.aplanguage.aplanglite.parser.Parser
 import com.github.aplanguage.aplanglite.tokenizer.scan

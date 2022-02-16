@@ -1,9 +1,9 @@
-package com.github.aplanguage.aplanglite.compiler.compilation
+package com.github.aplanguage.aplanglite.compiler.compilation.apvm
 
 import arrow.core.Either
-import com.github.aplanguage.aplanglite.compiler.bytecode.ConstantInfo
-import com.github.aplanguage.aplanglite.compiler.bytecode.ReferenceInfo
-import com.github.aplanguage.aplanglite.compiler.bytecode.ReferenceInfo.ResolvedReferenceInfo.*
+import com.github.aplanguage.aplanglite.compiler.compilation.apvm.bytecode.ConstantInfo
+import com.github.aplanguage.aplanglite.compiler.compilation.apvm.bytecode.ReferenceInfo
+import com.github.aplanguage.aplanglite.compiler.compilation.apvm.bytecode.ReferenceInfo.ResolvedReferenceInfo.*
 import com.github.aplanguage.aplanglite.compiler.naming.LocalVariable
 import com.github.aplanguage.aplanglite.compiler.naming.Namespace
 import com.github.aplanguage.aplanglite.utils.lastOrPut

@@ -1,7 +1,7 @@
 package com.github.aplanguage.aplanglite.utils
 
 import arrow.core.Either
-import com.github.aplanguage.aplanglite.compiler.bytecode.Instruction
+import com.github.aplanguage.aplanglite.compiler.compilation.apvm.bytecode.Instruction
 import com.github.aplanguage.aplanglite.compiler.naming.LocalVariable
 import com.github.aplanguage.aplanglite.compiler.naming.Namespace
 import com.github.aplanguage.aplanglite.parser.expression.Expression

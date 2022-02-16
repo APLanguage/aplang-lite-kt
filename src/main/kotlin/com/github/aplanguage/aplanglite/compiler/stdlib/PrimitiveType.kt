@@ -5,7 +5,7 @@ import com.github.aplanguage.aplanglite.compiler.naming.Namespace
 import com.github.aplanguage.aplanglite.tokenizer.CodeToken
 import com.github.aplanguage.aplanglite.tokenizer.CodeToken.*
 import kotlin.math.max
-import com.github.aplanguage.aplanglite.compiler.compilation.RegisterAllocator.Type as RegisterType
+import com.github.aplanguage.aplanglite.compiler.compilation.apvm.RegisterAllocator.Type as RegisterType
 
 enum class PrimitiveType : Namespace.Typeable {
   UNIT("Unit", RegisterType.REFERENCE),

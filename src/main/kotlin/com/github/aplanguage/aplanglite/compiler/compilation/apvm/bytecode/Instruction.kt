@@ -1,6 +1,6 @@
-package com.github.aplanguage.aplanglite.compiler.bytecode
+package com.github.aplanguage.aplanglite.compiler.compilation.apvm.bytecode
 
-import com.github.aplanguage.aplanglite.compiler.compilation.ResultTarget
+import com.github.aplanguage.aplanglite.compiler.compilation.apvm.ResultTarget
 import com.github.aplanguage.aplanglite.compiler.stdlib.PrimitiveType
 import com.github.aplanguage.aplanglite.parser.expression.DataExpression
 import com.github.aplanguage.aplanglite.tokenizer.CodeToken

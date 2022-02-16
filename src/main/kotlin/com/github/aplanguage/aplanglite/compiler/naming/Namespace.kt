@@ -4,11 +4,11 @@ import arrow.core.Either
 import arrow.core.handleError
 import arrow.core.left
 import arrow.core.right
-import com.github.aplanguage.aplanglite.compiler.bytecode.Instruction
-import com.github.aplanguage.aplanglite.compiler.compilation.ExpressionToBytecodeVisitor
-import com.github.aplanguage.aplanglite.compiler.compilation.Pool
-import com.github.aplanguage.aplanglite.compiler.compilation.RegisterAllocator
-import com.github.aplanguage.aplanglite.compiler.compilation.ResultTarget
+import com.github.aplanguage.aplanglite.compiler.compilation.apvm.bytecode.Instruction
+import com.github.aplanguage.aplanglite.compiler.compilation.apvm.ExpressionToBytecodeVisitor
+import com.github.aplanguage.aplanglite.compiler.compilation.apvm.Pool
+import com.github.aplanguage.aplanglite.compiler.compilation.apvm.RegisterAllocator
+import com.github.aplanguage.aplanglite.compiler.compilation.apvm.ResultTarget
 import com.github.aplanguage.aplanglite.compiler.stdlib.PrimitiveType
 import com.github.aplanguage.aplanglite.compiler.typechecking.StatementTypeChecker
 import com.github.aplanguage.aplanglite.compiler.typechecking.TypeCheckException
@@ -94,7 +94,9 @@ open class Namespace(
     override fun virtualType() = parent as? Class
     fun compile(pool: Pool) {
       val frame =
-        com.github.aplanguage.aplanglite.compiler.compilation.Frame(pool, parameters.map { it.localVariable ?: LocalVariable(it.name, it.type()) })
+        com.github.aplanguage.aplanglite.compiler.compilation.apvm.Frame(
+          pool,
+          parameters.map { it.localVariable ?: LocalVariable(it.name, it.type()) })
       exprs = exprs.handleError {
         frame.enterScope()
         val ins = it.flatMap { it.obj.visit(ExpressionToBytecodeVisitor(frame), null).instructions() }
@@ -130,7 +132,7 @@ open class Namespace(
     override fun isStatic() = parent !is Class
     fun compile(pool: Pool) {
       expr = expr?.handleError {
-        it.obj.visit(ExpressionToBytecodeVisitor(com.github.aplanguage.aplanglite.compiler.compilation.Frame(pool)), ResultTarget.Stack)
+        it.obj.visit(ExpressionToBytecodeVisitor(com.github.aplanguage.aplanglite.compiler.compilation.apvm.Frame(pool)), ResultTarget.Stack)
           .instructions()
       }
     }

@@ -1,7 +1,7 @@
 package com.github.aplanguage.aplanglite
 
-import com.github.aplanguage.aplanglite.compiler.bytecode.APLangFile
-import com.github.aplanguage.aplanglite.compiler.compilation.Pool
+import com.github.aplanguage.aplanglite.compiler.compilation.apvm.bytecode.APLangFile
+import com.github.aplanguage.aplanglite.compiler.compilation.apvm.Pool
 import com.github.aplanguage.aplanglite.compiler.naming.Namespace
 import com.github.aplanguage.aplanglite.compiler.stdlib.StandardLibrary
 import com.github.aplanguage.aplanglite.compiler.typechecking.TypeCheckException
@@ -40,9 +40,9 @@ object Main {
         }
       }
     """.trimIndent()
-//    val channel = FileChannel.open(Path.of("comp.bin"), StandardOpenOption.CREATE, StandardOpenOption.WRITE)
-//    compile(str).write(channel)
-//    channel.close()
+    val channel = FileChannel.open(Path.of("comp.bin"), StandardOpenOption.CREATE, StandardOpenOption.WRITE)
+    compile(str).write(channel)
+    channel.close()
     compile(str).print()
   }
 
