@@ -10,6 +10,10 @@ sealed class GriddedObject<out T>(open val obj: T) {
 
   fun expandTo(endX: Int, endY: Int) = expandTo(Point(endX, endY))
 
+  operator fun component1() = obj
+
+  operator fun component2() = area()
+
   abstract fun area(): Area
 
   abstract fun <T2> asGriddedObjectOfType(clazz: Class<T2>): GriddedObject<T2>?

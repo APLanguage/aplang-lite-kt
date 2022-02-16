@@ -1,6 +1,5 @@
 package com.github.aplanguage.aplanglite.parser.expression
 
-import arrow.core.Either
 import com.github.aplanguage.aplanglite.tokenizer.Token
 import com.github.aplanguage.aplanglite.utils.Area
 import com.github.aplanguage.aplanglite.utils.GriddedObject

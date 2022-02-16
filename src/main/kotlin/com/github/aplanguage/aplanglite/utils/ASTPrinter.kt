@@ -1,7 +1,9 @@
 package com.github.aplanguage.aplanglite.utils
 
 import arrow.core.Either
-import com.github.aplanguage.aplanglite.compiler.Namespace
+import com.github.aplanguage.aplanglite.compiler.bytecode.Instruction
+import com.github.aplanguage.aplanglite.compiler.naming.LocalVariable
+import com.github.aplanguage.aplanglite.compiler.naming.Namespace
 import com.github.aplanguage.aplanglite.parser.expression.Expression
 import com.github.aplanguage.aplanglite.tokenizer.Token
 import java.math.BigInteger
@@ -52,8 +54,9 @@ object ASTPrinter {
       is Pair<*, *> -> listOf("(", *convert(any.first).map { "  $it" }.toTypedArray(), *convert(any.second).map { "  $it" }.toTypedArray(), ")")
 //      is ReturnValue.CallableValue -> listOf("CallableValue(${any})")
 //      is Expression.Invocation, is Structure, is ReturnValue, is Scope
-      is Expression, is Token, is Expression.Program -> objToLines(convertObjWithFields(any))
+      is Expression, is Token, is Expression.Program, is Instruction -> objToLines(convertObjWithFields(any))
       is BigInteger, is Boolean, is Double, is Long, is Int -> listOf(any.toString())
+      is LocalVariable -> listOf("LocalVariable(${any.name}: ${any.type.path()})")
       is Enum<*> -> listOf(any.name)
       is Area -> listOf(
         when (any) {
@@ -83,7 +86,7 @@ object ASTPrinter {
       is Namespace.Use -> listOf("Use(${any.path}${if (any.star) " ,*" else ""}${if (any.alias != null) " ,${any.alias}" else ""})")
       is Either.Left<*> -> listOf("Left(${any.value})")
       is Either.Right<*> -> listOf("Right(${any.value})")
-      else -> throw RuntimeException("shrug -> ${any.javaClass.simpleName} $any")
+      else -> listOf(any.toString())
     }
   }
 

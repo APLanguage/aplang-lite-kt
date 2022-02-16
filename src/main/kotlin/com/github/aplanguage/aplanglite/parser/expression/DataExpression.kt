@@ -1,9 +1,10 @@
 package com.github.aplanguage.aplanglite.parser.expression
 
 import arrow.core.Either
+import arrow.core.NonEmptyList
 import arrow.core.handleError
-import com.github.aplanguage.aplanglite.compiler.NameResolver
-import com.github.aplanguage.aplanglite.compiler.Namespace
+import com.github.aplanguage.aplanglite.compiler.naming.NameResolver
+import com.github.aplanguage.aplanglite.compiler.naming.Namespace
 import com.github.aplanguage.aplanglite.compiler.stdlib.PrimitiveType
 import com.github.aplanguage.aplanglite.tokenizer.Token
 import com.github.aplanguage.aplanglite.utils.GriddedObject
@@ -12,22 +13,24 @@ sealed class DataExpression : Expression() {
 
   protected var type: Namespace.Class? = null
 
-  abstract fun <R> visit(dataExpressionVisitor: DataExpressionVisitor<R>): R
+  abstract fun <C, R> visit(dataExpressionVisitor: DataExpressionVisitor<C, R>, context: C): R
 
-  fun type(dataExpressionVisitor: DataExpressionVisitor<Namespace.Class>) : Namespace.Class {
+  fun <C> type(dataExpressionVisitor: DataExpressionVisitor<C, Namespace.Class>, context: C): Namespace.Class {
     if (type == null) {
-      type = visit(dataExpressionVisitor)
+      type = visit(dataExpressionVisitor, context)
     }
     return type!!
   }
+
+  fun type() = type ?: throw IllegalStateException("Type was not resolved!")
 
   data class Assignment(
     val call: GriddedObject<DataExpression>,
     val op: GriddedObject<Token.SignToken>,
     val expr: GriddedObject<DataExpression>
   ) : DataExpression() {
-    override fun <R> visit(dataExpressionVisitor: DataExpressionVisitor<R>): R =
-      dataExpressionVisitor.visitAssignment(this)
+    override fun <C, R> visit(dataExpressionVisitor: DataExpressionVisitor<C, R>, context: C): R =
+      dataExpressionVisitor.visitAssignment(this, context)
   }
 
   data class IfExpression(
@@ -35,8 +38,8 @@ sealed class DataExpression : Expression() {
     val thenExpr: GriddedObject<DataExpression>,
     val elseExpr: GriddedObject<DataExpression>
   ) : DataExpression() {
-    override fun <R> visit(dataExpressionVisitor: DataExpressionVisitor<R>): R =
-      dataExpressionVisitor.visitIf(this)
+    override fun <C, R> visit(dataExpressionVisitor: DataExpressionVisitor<C, R>, context: C): R =
+      dataExpressionVisitor.visitIf(this, context)
   }
 
   data class OopExpression(
@@ -48,11 +51,11 @@ sealed class DataExpression : Expression() {
       AS, IS, IS_NOT
     }
 
-    override fun <R> visit(dataExpressionVisitor: DataExpressionVisitor<R>): R =
-      dataExpressionVisitor.visitOop(this)
+    override fun <C, R> visit(dataExpressionVisitor: DataExpressionVisitor<C, R>, context: C): R =
+      dataExpressionVisitor.visitOop(this, context)
 
     fun typeToCast(nameResolver: NameResolver): Namespace.Class {
-      return when(typeToCast) {
+      return when (typeToCast) {
         is Either.Left -> {
           typeToCast = typeToCast.handleError { nameResolver.resolveClass(it.obj.path.asString()).first() }
           (typeToCast as Either.Right).value
@@ -63,47 +66,59 @@ sealed class DataExpression : Expression() {
   }
 
   data class BinaryOperation(
+    val opType: BinaryOpType,
     val first: GriddedObject<DataExpression>,
-    val operations: List<Pair<GriddedObject<Token.SignToken>, GriddedObject<DataExpression>>>
+    val operations: NonEmptyList<Pair<GriddedObject<Token.SignToken>, GriddedObject<DataExpression>>>
   ) : DataExpression() {
-    override fun <R> visit(dataExpressionVisitor: DataExpressionVisitor<R>): R =
-      dataExpressionVisitor.visitBinary(this)
+    enum class BinaryOpType {
+      LOGIC_OR, LOGIC_AND, EQUALITY, COMPARISON, TERM, FACTOR, BIT_OP
+    }
+
+    override fun <C, R> visit(dataExpressionVisitor: DataExpressionVisitor<C, R>, context: C): R =
+      dataExpressionVisitor.visitBinary(this, context)
   }
 
   data class UnaryOperation(
     val operation: GriddedObject<Token.SignToken>,
     val expr: GriddedObject<DataExpression>
   ) : DataExpression() {
-    override fun <R> visit(dataExpressionVisitor: DataExpressionVisitor<R>): R =
-      dataExpressionVisitor.visitUnary(this)
+    override fun <C, R> visit(dataExpressionVisitor: DataExpressionVisitor<C, R>, context: C): R =
+      dataExpressionVisitor.visitUnary(this, context)
   }
 
   data class FunctionCall(val identifier: GriddedObject<String>, val arguments: List<GriddedObject<DataExpression>>) : DataExpression() {
-    override fun <R> visit(dataExpressionVisitor: DataExpressionVisitor<R>): R =
-      dataExpressionVisitor.visitFunctionCall(this)
+    var resolvedFunction: Namespace.Method? = null
+    override fun <C, R> visit(dataExpressionVisitor: DataExpressionVisitor<C, R>, context: C): R =
+      dataExpressionVisitor.visitFunctionCall(this, context)
   }
 
   data class Call(
     val primary: GriddedObject<DataExpression>,
-    val call: Either<GriddedObject<FunctionCall>, GriddedObject<String>>
+    var call: Either<GriddedObject<FunctionCall>, Either<GriddedObject<String>, Namespace.Field>>
   ) : DataExpression() {
-    override fun <R> visit(dataExpressionVisitor: DataExpressionVisitor<R>): R =
-      dataExpressionVisitor.visitCall(this)
+    override fun <C, R> visit(dataExpressionVisitor: DataExpressionVisitor<C, R>, context: C): R =
+      dataExpressionVisitor.visitCall(this, context)
   }
 
   data class DirectValue(val value: Token.ValueToken) : DataExpression() {
-    override fun <R> visit(dataExpressionVisitor: DataExpressionVisitor<R>): R =
-      dataExpressionVisitor.visitDirectValue(this)
+    override fun <C, R> visit(dataExpressionVisitor: DataExpressionVisitor<C, R>, context: C): R =
+      dataExpressionVisitor.visitDirectValue(this, context)
   }
 
-  data class IdentifierExpression(val identifier: GriddedObject<String>) : DataExpression() {
-    override fun <R> visit(dataExpressionVisitor: DataExpressionVisitor<R>): R =
-      dataExpressionVisitor.visitIdentifier(this)
+  data class IdentifierExpression(var identifier: GriddedObject<String>) : DataExpression() {
+    var resolved: Namespace.Typeable? = null
+    override fun <C, R> visit(dataExpressionVisitor: DataExpressionVisitor<C, R>, context: C): R =
+      dataExpressionVisitor.visitIdentifier(this, context)
   }
 
   data class PrimitiveHolder(val primitive: PrimitiveType) : DataExpression() {
-    override fun <R> visit(dataExpressionVisitor: DataExpressionVisitor<R>): R =
-      dataExpressionVisitor.visitPrimitive(this)
-
+    override fun <C, R> visit(dataExpressionVisitor: DataExpressionVisitor<C, R>, context: C): R =
+      dataExpressionVisitor.visitPrimitive(this, context)
   }
 }
+
+inline fun <C, R> GriddedObject<DataExpression>.visit(dataExpressionVisitor: DataExpressionVisitor<C, R>, context: C) =
+  obj.visit(dataExpressionVisitor, context)
+
+inline fun <C> GriddedObject<DataExpression>.type(dataExpressionVisitor: DataExpressionVisitor<C, Namespace.Class>, context: C) =
+  obj.type(dataExpressionVisitor, context)

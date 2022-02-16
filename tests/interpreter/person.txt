@@ -1,9 +1,9 @@
 fn main() {
    var person = Person()
    println(person)
-   println("Before:", person.name)
+   println("Before: " + person.name)
    person.name = "AP"
-   println("After:", person.name)
+   println("After: " + person.name)
    println(person.sayHi("everyone"))
 }
 

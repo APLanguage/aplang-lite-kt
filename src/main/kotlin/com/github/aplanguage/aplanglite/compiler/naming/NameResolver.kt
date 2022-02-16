@@ -1,6 +1,7 @@
-package com.github.aplanguage.aplanglite.compiler
+package com.github.aplanguage.aplanglite.compiler.naming
 
 import arrow.core.Either
+import com.github.aplanguage.aplanglite.compiler.compilation.RegisterAllocator
 import com.github.aplanguage.aplanglite.compiler.stdlib.StandardLibrary.STD_LIB
 import com.github.aplanguage.aplanglite.parser.Parser
 import com.github.aplanguage.aplanglite.tokenizer.scan
@@ -12,8 +13,10 @@ import java.io.File
 import java.nio.charset.StandardCharsets
 
 
-data class LocalVariable(val id: Int, val name: String, val type: Namespace.Class) : Namespace.Typeable {
+data class LocalVariable(val name: String, val type: Namespace.Class) : Namespace.Typeable, Namespace.Settable {
+  var register: RegisterAllocator.Register? = null
   override fun type() = type
+  override fun isStatic() = true
 }
 
 class NameResolver {
@@ -47,14 +50,12 @@ class NameResolver {
 
 
   fun resolveField(name: String): Namespace.Field? =
-    namespace.resolveFieldsInScope(name).firstOrNull() ?: otherNamespaces.mapNotNull { it.root().findFields(name).firstOrNull() }.firstOrNull()
+    namespace.resolveFieldsInScope(name).firstOrNull() ?: otherNamespaces.firstNotNullOfOrNull { it.root().findFields(name).firstOrNull() }
 
   fun resolveLocalVariable(name: String): LocalVariable? = frame.localVariables.lastOrNull { it.name == name }
 
   fun resolveMethod(name: String): List<Namespace.Method> =
-    namespace.resolveMethodsInScope(name) + resolveClass(name).map {
-      Namespace.Method(it.name, mutableListOf(), Either.Right(it), Either.Left(listOf()))
-    } + otherNamespaces.flatMap { it.root().findMethods(name) }
+    namespace.resolveMethodsInScope(name) + resolveClass(name).map { it.constructor } + otherNamespaces.flatMap { it.root().findMethods(name) }
 
   fun resolveClass(name: String): List<Namespace.Class> = namespace.resolveClassPath(name) + STD_LIB.findClasses(name)
 }
@@ -71,7 +72,7 @@ class Frame(val expectedType: Namespace.Class? = null) {
     repeat(localVariables.size - (sections.removeLastOrNull() ?: return)) { localVariables.removeLast() }
   }
 
-  fun register(name: String, type: Namespace.Class): LocalVariable = LocalVariable(localVariables.size, name, type).also { localVariables.add(it) }
+  fun register(name: String, type: Namespace.Class): LocalVariable = LocalVariable(name, type).also { localVariables.add(it) }
 }
 
 fun Either<GriddedObject<String>, Namespace.Class>.resolve(nameResolver: NameResolver) =

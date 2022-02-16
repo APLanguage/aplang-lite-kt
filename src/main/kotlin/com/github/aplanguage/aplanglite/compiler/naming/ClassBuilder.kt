@@ -1,4 +1,4 @@
-package com.github.aplanguage.aplanglite.compiler
+package com.github.aplanguage.aplanglite.compiler.naming
 
 import arrow.core.Either
 
@@ -25,10 +25,10 @@ class ClassBuilder(val name: String) {
 
   fun method(name: String, parameters: List<Namespace.Class>, returnType: Namespace.Class? = null): ClassBuilder {
     methods.add(
-      Namespace.Method(
-        name, parameters.map { "<?>" to Either.Right(it) }.toMutableList(), returnType?.let { Either.Right(it) },
-        Either.Right(listOf())
-      )
+      Namespace.Method(name, returnType?.let { Either.Right(it) }, Either.Right(listOf()))
+        .apply {
+          parameters.map { "<?>" to Either.Right(it) }.forEach { (name, type) -> addParameter(name, type) }
+        }
     )
     return this
   }
@@ -45,7 +45,7 @@ class ClassBuilder(val name: String) {
       self.fields.forEach { it.type = it.type?.map { type -> if (type == SELF_CLASS) self else type } }
       self.methods.forEach {
         it.returnType = it.returnType?.map { type -> if (type == SELF_CLASS) self else type }
-        it.parameters.replaceAll { (name, typeObj) -> name to typeObj.map { type -> if (type == SELF_CLASS) self else type } }
+        it.parameters.forEach { param -> param.clazz = param.clazz.map { type -> if (type == SELF_CLASS) self else type } }
       }
     }
 

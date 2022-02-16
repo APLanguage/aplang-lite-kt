@@ -1,12 +1,12 @@
 package com.github.aplanguage.aplanglite.parser.expression
 
 import arrow.core.Either
-import com.github.aplanguage.aplanglite.compiler.Namespace
+import com.github.aplanguage.aplanglite.compiler.naming.Namespace
 import com.github.aplanguage.aplanglite.utils.GriddedObject
 
 sealed class Statement : Expression() {
 
-  abstract fun <R> visit(visitor: StatementVisitor<R>): R
+  abstract fun <C, R> visit(visitor: StatementVisitor<C, R>, context: C): R
 
   data class ForStatement(
     val identifier: GriddedObject<String>,
@@ -14,15 +14,15 @@ sealed class Statement : Expression() {
     val iterableExpr: GriddedObject<DataExpression>,
     val statement: GriddedObject<Statement>
   ) : Statement() {
-    override fun <R> visit(visitor: StatementVisitor<R>): R = visitor.visitFor(this)
+    override fun <C, R> visit(visitor: StatementVisitor<C, R>, context: C): R = visitor.visitFor(this, context)
   }
 
   data class ReturnStatement(val expr: GriddedObject<DataExpression>?) : Statement() {
-    override fun <R> visit(visitor: StatementVisitor<R>): R = visitor.visitReturn(this)
+    override fun <C, R> visit(visitor: StatementVisitor<C, R>, context: C): R = visitor.visitReturn(this, context)
   }
 
   data class DeclarationStatement(val declaration: Declaration) : Statement() {
-    override fun <R> visit(visitor: StatementVisitor<R>): R = visitor.visitDeclaration(this)
+    override fun <C, R> visit(visitor: StatementVisitor<C, R>, context: C): R = visitor.visitDeclaration(this, context)
   }
 
   object BreakStatement : Statement() {
@@ -30,12 +30,12 @@ sealed class Statement : Expression() {
 
     override fun hashCode(): Int = javaClass.hashCode()
 
-    override fun <R> visit(visitor: StatementVisitor<R>): R = visitor.visitBreak(this)
+    override fun <C, R> visit(visitor: StatementVisitor<C, R>, context: C): R = visitor.visitBreak(this, context)
 
   }
 
   data class WhileStatement(val condition: GriddedObject<DataExpression>, val statement: GriddedObject<Statement>?) : Statement() {
-    override fun <R> visit(visitor: StatementVisitor<R>): R = visitor.visitWhile(this)
+    override fun <C, R> visit(visitor: StatementVisitor<C, R>, context: C): R = visitor.visitWhile(this, context)
   }
 
   data class IfStatement(
@@ -43,14 +43,16 @@ sealed class Statement : Expression() {
     val thenStmt: GriddedObject<Statement>,
     val elseStmt: GriddedObject<Statement>?
   ) : Statement() {
-    override fun <R> visit(visitor: StatementVisitor<R>): R = visitor.visitIf(this)
+    override fun <C, R> visit(visitor: StatementVisitor<C, R>, context: C): R = visitor.visitIf(this, context)
   }
 
   data class Block(val statements: List<GriddedObject<Statement>>) : Statement() {
-    override fun <R> visit(visitor: StatementVisitor<R>): R = visitor.visitBlock(this)
+    override fun <C, R> visit(visitor: StatementVisitor<C, R>, context: C): R = visitor.visitBlock(this, context)
   }
 
   data class ExpressionStatement(val expr: DataExpression) : Statement() {
-    override fun <R> visit(visitor: StatementVisitor<R>): R = visitor.visitExpression(this)
+    override fun <C, R> visit(visitor: StatementVisitor<C, R>, context: C): R = visitor.visitExpression(this, context)
   }
 }
+
+inline fun <C, R> GriddedObject<Statement>.visit(visitor: StatementVisitor<C, R>, context: C): R = this.obj.visit(visitor, context)

@@ -3,26 +3,26 @@ package com.github.aplanguage.aplanglite.parser.expression
 import com.github.aplanguage.aplanglite.parser.expression.DataExpression.*
 import com.github.aplanguage.aplanglite.parser.expression.Statement.*
 
-interface DataExpressionVisitor<out R> {
-  fun visitAssignment(assignment: Assignment): R
-  fun visitIf(ifExpr: IfExpression): R
-  fun visitOop(oop: OopExpression): R
-  fun visitBinary(binary: BinaryOperation): R
-  fun visitUnary(unary: UnaryOperation): R
-  fun visitFunctionCall(functionCall: FunctionCall): R
-  fun visitCall(call: Call): R
-  fun visitDirectValue(directValue: DirectValue): R
-  fun visitIdentifier(identifier: IdentifierExpression): R
-  fun visitPrimitive(primitiveHolder: PrimitiveHolder): R
+interface DataExpressionVisitor<C, out R> {
+  fun visitAssignment(assignment: Assignment, context: C): R
+  fun visitIf(ifExpr: IfExpression, context: C): R
+  fun visitOop(oop: OopExpression, context: C): R
+  fun visitBinary(binary: BinaryOperation, context: C): R
+  fun visitUnary(unary: UnaryOperation, context: C): R
+  fun visitFunctionCall(functionCall: FunctionCall, context: C): R
+  fun visitCall(call: Call, context: C): R
+  fun visitDirectValue(directValue: DirectValue, context: C): R
+  fun visitIdentifier(identifier: IdentifierExpression, context: C): R
+  fun visitPrimitive(primitiveHolder: PrimitiveHolder, context: C): R
 }
 
-interface StatementVisitor<out R> {
-  fun visitFor(forStmt: ForStatement): R
-  fun visitReturn(returnStmt: ReturnStatement): R
-  fun visitDeclaration(declarationStmt: DeclarationStatement): R
-  fun visitBreak(breakStmt: BreakStatement): R
-  fun visitWhile(whileStmt: WhileStatement): R
-  fun visitIf(ifStmt: IfStatement): R
-  fun visitBlock(block: Block): R
-  fun visitExpression(expression: ExpressionStatement): R
+interface StatementVisitor<C, out R> {
+  fun visitFor(forStmt: ForStatement, context: C): R
+  fun visitReturn(returnStmt: ReturnStatement, context: C): R
+  fun visitDeclaration(declarationStmt: DeclarationStatement, context: C): R
+  fun visitBreak(breakStmt: BreakStatement, context: C): R
+  fun visitWhile(whileStmt: WhileStatement, context: C): R
+  fun visitIf(ifStmt: IfStatement, context: C): R
+  fun visitBlock(block: Block, context: C): R
+  fun visitExpression(expression: ExpressionStatement, context: C): R
 }
