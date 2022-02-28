@@ -40,14 +40,18 @@ object Main {
 //    val channel = FileChannel.open(Path.of("comp.bin"), StandardOpenOption.CREATE, StandardOpenOption.WRITE)
 //    compile(str).write(channel)
 //    channel.close()
-    compile(str).print()
+    compile(str)?.print()
   }
 
-  private fun compile(code: String): APLangFile {
+  private fun compile(code: String): APLangFile? {
     val underliner = Underliner(code.lines())
     try {
       val parser = Parser(TokenScanner(scan(CharScanner(code)).tokens), underliner)
-      val program = parser.program() ?: throw Exception("Failed to parse")
+      val program = parser.program()
+      if (program == null) {
+        println("Failed to parse")
+        return null
+      }
       if (parser.errors().isNotEmpty()) {
         parser.errors().forEach {
           underliner.underline(it.area)
@@ -55,7 +59,8 @@ object Main {
           it.exception.printStackTrace()
           System.out.flush()
         }
-        throw Exception("Failed to parse")
+        println("Failed to parse")
+        return null
       }
       val pool = Pool()
       StandardLibrary.STD_LIB.path()
@@ -68,7 +73,8 @@ object Main {
           exception.printStackTrace()
           System.out.flush()
         }
-        throw Exception("Failed to typecheck")
+        println("Failed to typecheck")
+        return null
       }
       namespace.compile(pool)
       return APLangFile.ofNamespace(pool, namespace)
@@ -80,7 +86,8 @@ object Main {
       e.printStackTrace()
     }
     System.out.flush()
-    throw Exception("Failed to compile")
+    println("Failed to compile")
+    return null
   }
 }
 
