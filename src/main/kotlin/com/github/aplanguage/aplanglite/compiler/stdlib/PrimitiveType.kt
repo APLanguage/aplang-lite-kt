@@ -69,7 +69,7 @@ enum class PrimitiveType : Namespace.Typeable {
   override fun type() = clazz
 
   fun binary(operator: CodeToken, other: PrimitiveType): PrimitiveType {
-    if (operator == EQUAL || operator == BANG_EQUAL) return when {
+    if (operator == EQUAL_EQUAL || operator == BANG_EQUAL) return when {
       this == other -> BOOL
       this in INTEGERS && other in INTEGERS -> BOOL
       this in FLOATS && other in FLOATS -> BOOL
@@ -110,4 +110,6 @@ enum class PrimitiveType : Namespace.Typeable {
       else -> VOID
     }
   }
+
+  fun isNumeric() = this in NUMERICS
 }
