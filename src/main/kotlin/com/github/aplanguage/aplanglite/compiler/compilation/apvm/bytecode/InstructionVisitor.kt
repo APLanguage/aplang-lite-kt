@@ -1,7 +1,7 @@
 package com.github.aplanguage.aplanglite.compiler.compilation.apvm.bytecode
 
-import com.github.aplanguage.aplanglite.compiler.compilation.apvm.bytecode.Instruction.*
 import com.github.aplanguage.aplanglite.compiler.compilation.apvm.Pool
+import com.github.aplanguage.aplanglite.compiler.compilation.apvm.bytecode.Instruction.*
 import com.github.aplanguage.aplanglite.tokenizer.Token
 
 interface InstructionVisitor<C, R> {
@@ -87,15 +87,15 @@ class BytecodeStringifier(private val pool: Pool) : InstructionVisitor<Unit, Str
   }
 
   override fun visit(instruction: PopStack, context: Unit): String {
-    return "POP  ${instruction.entries}"
+    return "POP  ${instruction.entries + 1u}"
   }
 
   override fun visit(instruction: DuplicateStack, context: Unit): String {
-    return "DUP  ${instruction.entries}"
+    return "DUP  ${instruction.entries + 1u}"
   }
 
   override fun visit(instruction: SwapStack, context: Unit): String {
-    return "SWAP ${instruction.entries}"
+    return "SWAP ${instruction.entries + 1u}"
   }
 
   override fun visit(instruction: Constant.DirectInteger, context: Unit): String {
