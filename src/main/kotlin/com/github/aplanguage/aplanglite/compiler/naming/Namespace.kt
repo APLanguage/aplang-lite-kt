@@ -4,11 +4,11 @@ import arrow.core.Either
 import arrow.core.handleError
 import arrow.core.left
 import arrow.core.right
-import com.github.aplanguage.aplanglite.compiler.compilation.apvm.bytecode.Instruction
 import com.github.aplanguage.aplanglite.compiler.compilation.apvm.ExpressionToBytecodeVisitor
 import com.github.aplanguage.aplanglite.compiler.compilation.apvm.Pool
 import com.github.aplanguage.aplanglite.compiler.compilation.apvm.RegisterAllocator
 import com.github.aplanguage.aplanglite.compiler.compilation.apvm.ResultTarget
+import com.github.aplanguage.aplanglite.compiler.compilation.apvm.bytecode.Instruction
 import com.github.aplanguage.aplanglite.compiler.stdlib.PrimitiveType
 import com.github.aplanguage.aplanglite.compiler.typechecking.StatementTypeChecker
 import com.github.aplanguage.aplanglite.compiler.typechecking.TypeCheckException
@@ -105,6 +105,8 @@ open class Namespace(
       }
       resolvedRegisters = frame.registerAllocator.registers.map { it.type }
     }
+
+    fun isStatic() = parent !is Class
 
     inner class MethodParameter(val name: String, var clazz: Either<GriddedObject<String>, Class>) : Typeable {
       var localVariable: LocalVariable? = null
@@ -324,20 +326,20 @@ open class Namespace(
     classes.forEach { it.resolve(namespaces) }
   }
 
-  fun typeCheck(namespaces: Set<Namespace>): List<Pair<String, List<Area>>> {
+  fun typeCheck(namespaces: Set<Namespace>): List<TypeCheckException> {
     return classes.flatMap { it.typeCheck(namespaces) } + fields.mapNotNull {
       try {
         it.typeCheck(namespaces)
         null
       } catch (e: TypeCheckException) {
-        e.message!! to e.areas
+        e
       }
     } + methods.mapNotNull {
       try {
         it.typeCheck(namespaces)
         null
       } catch (e: TypeCheckException) {
-        e.message!! to e.areas
+        e
       }
     }
   }

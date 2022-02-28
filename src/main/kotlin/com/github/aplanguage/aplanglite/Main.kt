@@ -1,7 +1,7 @@
 package com.github.aplanguage.aplanglite
 
-import com.github.aplanguage.aplanglite.compiler.compilation.apvm.bytecode.APLangFile
 import com.github.aplanguage.aplanglite.compiler.compilation.apvm.Pool
+import com.github.aplanguage.aplanglite.compiler.compilation.apvm.bytecode.APLangFile
 import com.github.aplanguage.aplanglite.compiler.naming.Namespace
 import com.github.aplanguage.aplanglite.compiler.stdlib.StandardLibrary
 import com.github.aplanguage.aplanglite.compiler.typechecking.TypeCheckException
@@ -11,9 +11,6 @@ import com.github.aplanguage.aplanglite.tokenizer.scan
 import com.github.aplanguage.aplanglite.utils.CharScanner
 import com.github.aplanguage.aplanglite.utils.TokenScanner
 import com.github.aplanguage.aplanglite.utils.Underliner
-import java.nio.channels.FileChannel
-import java.nio.file.Path
-import java.nio.file.StandardOpenOption
 
 object Main {
 
@@ -40,9 +37,9 @@ object Main {
         }
       }
     """.trimIndent()
-    val channel = FileChannel.open(Path.of("comp.bin"), StandardOpenOption.CREATE, StandardOpenOption.WRITE)
-    compile(str).write(channel)
-    channel.close()
+//    val channel = FileChannel.open(Path.of("comp.bin"), StandardOpenOption.CREATE, StandardOpenOption.WRITE)
+//    compile(str).write(channel)
+//    channel.close()
     compile(str).print()
   }
 
@@ -66,9 +63,9 @@ object Main {
       namespace.resolve(setOf(StandardLibrary.STD_LIB))
       val typecheckErrors = namespace.typeCheck(setOf(StandardLibrary.STD_LIB))
       if (typecheckErrors.isNotEmpty()) {
-        typecheckErrors.forEach { (message, areas) ->
-          areas.forEach(underliner::underline)
-          println(message)
+        typecheckErrors.forEach { exception ->
+          exception.areas.forEach(underliner::underline)
+          exception.printStackTrace()
           System.out.flush()
         }
         throw Exception("Failed to typecheck")
