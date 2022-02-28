@@ -69,11 +69,15 @@ class TypeChecker(val nameResolver: NameResolver) : DataExpressionVisitor<Unit, 
     return when (oop.oopOpType) {
       OopOpType.AS -> {
         val type = oop.expr.type(this, context)
+        val targetArea = (oop.typeToCast as? Either.Left)?.value?.area()
         val targetType = oop.typeToCast(nameResolver)
         if (targetType != type && !targetType.allSuperClasses().contains(type)) {
+          if(type.primitiveType().isNumeric() && targetType.primitiveType().isNumeric()) {
+            return targetType
+          }
           throw TypeCheckException(
             "type mismatch, got ${type.path()} and ${targetType.path()}",
-            listOf(oop.expr.area())
+            if (targetArea != null) listOf(oop.expr.area(), targetArea) else listOf(oop.expr.area())
           )
         }
         targetType
