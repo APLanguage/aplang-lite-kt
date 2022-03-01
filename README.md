@@ -6,4 +6,4 @@ The project is a monolithic one, because it's easier to maintain for this purpos
 This project has already surpassed 4.5k lines of code.
 The APVM-lite project will probably be also implemented in C++ for educational reasons.
 
-The specs and more information about the VM and APLang-lite can be found in the [specs repository](https://github.com/APLanguage/aplang-lite-specs)
+The specs and more information about the VM and APLang-lite can be found in the [specs repository](https://github.com/APLanguage/aplang-lite-specs).
