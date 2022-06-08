@@ -1,8 +1,9 @@
 package com.github.aplanguage.aplanglite.tokenizer
 
+import com.github.aplanguage.aplanglite.compiler.stdlib.PrimitiveType
+import com.github.aplanguage.aplanglite.tokenizer.Token.ValueToken.LiteralToken
 import com.github.aplanguage.aplanglite.utils.CharScanner
 import com.github.aplanguage.aplanglite.utils.OneLineObject
-import java.math.BigInteger
 
 enum class ScanErrorType {
   NUMBER_FORMAT
@@ -36,38 +37,7 @@ fun scan(scanner: CharScanner): ScanResult {
     else if (buffer[0].isWhitespace()) continue
     else if (buffer[0].isDigit()) {
       scanner.resetPeek()
-      val tk = if (scanner.peekSearch("0x")) {
-        scanner.advancePosition(2)
-        val nb = scanner.searchConsumeChars {
-          it.isDigit() || it in 'A'..'F' || it in 'a'..'f'
-        }
-        if (nb.isEmpty()) {
-          scanner.rewindPosition(1)
-          Token.ValueToken.LiteralToken.IntegerToken(BigInteger.ZERO)
-        } else {
-          Token.ValueToken.LiteralToken.IntegerToken(BigInteger(nb, 16))
-        }
-      } else if (scanner.peekSearch("0b")) {
-        scanner.advancePosition(2)
-        val nb = scanner.searchConsumeChars(Char::isDigit)
-        if (nb.isEmpty()) {
-          scanner.rewindPosition(1)
-          Token.ValueToken.LiteralToken.IntegerToken(BigInteger.ZERO)
-        } else {
-          val bi = nb.toBigIntegerOrNull(2)
-          if (bi == null) {
-            errors.add(OneLineObject(posX, posY, ScanErrorType.NUMBER_FORMAT, scanner.position - startPos))
-            Token.ValueToken.LiteralToken.IntegerToken(BigInteger(nb))
-          } else Token.ValueToken.LiteralToken.IntegerToken(bi)
-        }
-      } else {
-        val nb = scanner.searchConsumeChars(Char::isDigit)
-        if (scanner.peekSearchChar('.') && scanner.peekSearchWithPredicate(Char::isDigit)) {
-          scanner.advancePosition(1)
-          Token.ValueToken.LiteralToken.FloatToken(BigInteger(nb), BigInteger(scanner.searchConsumeChars(Char::isDigit)))
-        } else Token.ValueToken.LiteralToken.IntegerToken(BigInteger(nb))
-      }
-      tokens.add(OneLineObject(posX, posY, tk, scanner.position - startPos))
+      tokens.add(OneLineObject(posX, posY, parseNumberLiteral(scanner, posX, posY), scanner.position - startPos))
       posX += scanner.position - startPos
       continue
     }
@@ -80,7 +50,7 @@ fun scan(scanner: CharScanner): ScanResult {
           OneLineObject(
             posX,
             posY,
-            Token.ValueToken.LiteralToken.StringToken(match.value.substring(1, match.value.length - 1)),
+            LiteralToken.StringToken(match.value.substring(1, match.value.length - 1)),
             scanner.position - startPos
           )
         )
@@ -95,7 +65,7 @@ fun scan(scanner: CharScanner): ScanResult {
           OneLineObject(
             posX,
             posY,
-            Token.ValueToken.LiteralToken.CharToken(match.value.substring(1, match.value.length - 1)),
+            LiteralToken.CharToken(match.value.substring(1, match.value.length - 1)),
             scanner.position - startPos
           )
         )
@@ -126,5 +96,49 @@ fun scan(scanner: CharScanner): ScanResult {
     }
   }
   return ScanResult(tokens, errors)
+}
+
+private fun parseNumberLiteral(scanner: CharScanner, posX: Int, posY: Int): LiteralToken {
+  return if (scanner.peekSearch("0x", true)) {
+    parseNumberLiteral(scanner, "0x", { it.isDigit() || it in 'a'..'f' || it in 'A'..'F' || it == '_' }, "hexadecimal", "0-9a-fA-F", posX, posY)
+  } else if (scanner.peekSearch("0b", true)) {
+    parseNumberLiteral(scanner, "0b", { it.isDigit() || it == '_' }, "binary", "0 or 1", posX, posY)
+  } else parseNumberLiteral(scanner, "", { it.isDigit() || it == '_' }, "decimal", "digit", posX, posY)
+}
+
+private fun parseNumberLiteral(
+  scanner: CharScanner,
+  prefix: String,
+  filter: (Char) -> Boolean,
+  itsA: String, expectedOne: String,
+  posX: Int, posY: Int
+): LiteralToken {
+  val startPos = scanner.position
+  scanner.advancePosition(prefix.length)
+  val nb = scanner.searchConsumeChars(filter)
+  if (nb.isEmpty()) {
+    throw TokenizerException("Invalid $itsA number at $posY:${posX + scanner.position - startPos}. Expected at least one $expectedOne")
+  }
+  return nbToTk(prefix, nb.replace("_", ""), scanner.searchConsumeChars { it.isDigit() || it == '_' || it.uppercaseChar() in 'A'..'Z' }, posX, posY)
+}
+
+private fun nbToTk(prefix: String, nb: String, suffix: String, posX: Int, posY: Int): LiteralToken {
+  val type = suffix.uppercase().let { suffix ->
+    when (suffix) {
+      "D", "F64" -> PrimitiveType.DOUBLE
+      "F", "F32" -> PrimitiveType.FLOAT
+      "" -> PrimitiveType.I32
+      else -> PrimitiveType.INTEGERS.firstOrNull { it.name == suffix }
+    }
+  } ?: throw TokenizerException("Invalid number suffix '$suffix' at $posY:$posX")
+  if (type.isFloatingPoint()) {
+    if (prefix.isNotEmpty()) throw TokenizerException("Invalid number prefix '$prefix' at $posY:$posX for floating point number.")
+    return LiteralToken.FloatToken.tokenOf(type, nb.toBigDecimal())
+  }
+  val bigInt = if (prefix == "0x") nb.toBigInteger(16) else if (prefix == "0b") nb.toBigInteger(2) else nb.toBigInteger()
+  if (bigInt.bitLength() > type.registerType.byteSize) {
+    throw TokenizerException("Number '$nb' is too big for ${type.name} at $posY:$posX")
+  }
+  return LiteralToken.IntegerToken.tokenOf(type, bigInt)
 }
 

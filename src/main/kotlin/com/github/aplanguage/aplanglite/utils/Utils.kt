@@ -1,7 +1,9 @@
 package com.github.aplanguage.aplanglite.utils
 
+import arrow.core.NonEmptyList
 import java.nio.ByteBuffer
 import java.nio.channels.ReadableByteChannel
+import java.nio.charset.StandardCharsets
 
 inline fun <T> listOfUntilNull(generator: () -> T?): List<T> {
   var temp: T? = generator()
@@ -13,9 +15,10 @@ inline fun <T> listOfUntilNull(generator: () -> T?): List<T> {
   return list.toList()
 }
 
-inline fun <T> listOfMapUntilNull(initial: T, generator: (T) -> T?): List<T> {
+inline fun <T> listOfMapUntilNull(initial: T?, generator: (T) -> T?): List<T> {
+  if (initial == null) return listOf()
   var temp: T? = generator(initial)
-  val list = mutableListOf<T>()
+  val list = mutableListOf<T>(initial)
   while (temp != null) {
     list.add(temp)
     temp = generator(temp)
@@ -32,12 +35,37 @@ inline fun <T> listOfTimes(i: Int, generator: () -> T): List<T> {
   return list
 }
 
+inline fun <T> listOfTimesIndexed(i: Int, generator: (Int) -> T): List<T> {
+  val list = mutableListOf<T>()
+  if (i < 1) return list
+  for (counter in 0 until i) {
+    list.add(generator(counter))
+  }
+  return list
+}
+
+fun <A, B> Iterable<A>.allZip(other: Iterable<B>, check: (A, B) -> Boolean): Boolean {
+  val iterator1 = this.iterator()
+  val iterator2 = other.iterator()
+  while (iterator1.hasNext() && iterator2.hasNext()) {
+    if (!check(iterator1.next(), iterator2.next())) return false
+  }
+  return !iterator1.hasNext() && !iterator2.hasNext()
+}
+
+
 fun <T1, T2> List<T1>.compareEachElement(otherList: List<T2>, compare: (T1, T2) -> Boolean): Boolean {
   if (this.size != otherList.size) return false
-  for (i in 0 until this.size) {
-    if (!compare(this[i], otherList[i])) return false
+  return (0 until this.size).all { compare(this[it], otherList[it]) }
+}
+
+fun <E> MutableList<E>.lastOrPut(elementSupplier: () -> E): E {
+  if (this.isEmpty()) {
+    val element = elementSupplier()
+    this.add(element)
+    return element
   }
-  return true
+  return this.last()
 }
 
 infix fun Int.nextBit(b: Boolean) = this shl 1 or if (b) 1 else 0
@@ -67,13 +95,28 @@ inline fun <T> ByteBuffer.putCollection(byteSize: Int, collection: Collection<T>
 
 fun ByteArray.toByteBuffer(): ByteBuffer = ByteBuffer.allocate(size).put(this)
 
-fun readFromChannel(channel: ReadableByteChannel, bytes: Int): ByteBuffer? = ByteBuffer.allocate(bytes).also {
-  if (channel.read(it) != it.capacity()) return null
+fun ReadableByteChannel.read(bytes: Int): ByteBuffer? = ByteBuffer.allocate(bytes).also {
+  if (read(it) != it.capacity()) return@read null
 }
 
-inline fun ubyteFromChannel(channel: ReadableByteChannel) = readFromChannel(channel, 1)?.get()?.toUByte()
-inline fun ushortFromChannel(channel: ReadableByteChannel) = readFromChannel(channel, 2)?.short?.toUShort()
+inline fun ReadableByteChannel.ubyte() = read(1)?.get()?.toUByte()
+inline fun ReadableByteChannel.ushort() = read(2)?.short?.toUShort()
+inline fun ReadableByteChannel.uint() = read(4)?.int?.toUInt()
+inline fun ReadableByteChannel.ulong() = read(8)?.long?.toULong()
+inline fun ReadableByteChannel.byte() = read(1)?.get()
+inline fun ReadableByteChannel.short() = read(2)?.short
+inline fun ReadableByteChannel.int() = read(4)?.int
+inline fun ReadableByteChannel.long() = read(8)?.long
+inline fun ReadableByteChannel.float() = read(4)?.float
+inline fun ReadableByteChannel.double() = read(8)?.double
+inline fun ReadableByteChannel.string1() = string(1)
+inline fun ReadableByteChannel.string2() = string(2)
+inline fun ReadableByteChannel.string4() = string(4)
+inline fun ReadableByteChannel.string(strLength: Int): String? = read(strLength)?.let { StandardCharsets.UTF_8.decode(it).toString() }
+
 
 interface ByteBufferable {
   fun toByteBuffer(): ByteBuffer
 }
+
+inline fun <T> List<T>.toNonEmptyList() = NonEmptyList.fromListUnsafe(this)

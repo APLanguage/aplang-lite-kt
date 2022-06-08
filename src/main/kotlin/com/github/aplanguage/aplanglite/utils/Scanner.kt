@@ -201,19 +201,17 @@ class CharScanner(val str: String) : Scanner<Char>(str.toCharArray().asList()) {
     fail_on_not_reach = fail_on_not_reach
   )
 
-  fun peekChar(): Char? {
-    return elements.getOrNull(peek)?.also { peek += 1 }
-  }
+  fun consumeSearchChar(chr: Char): Boolean = consume()?.let { it == chr } ?: false
 
   fun peekChars(nb: Int, fail_on_not_reach: Boolean): String? =
     nextChars(nb, consume = false, use_peek = true, fail_on_not_reach = fail_on_not_reach)
 
-  fun peekSearch(str: String): Boolean =
+  fun peekSearch(str: String, ignoreCase: Boolean = false): Boolean =
     nextChars(str.length, consume = false, use_peek = true, fail_on_not_reach = true)?.let {
-      (str == it).also { result -> if (!result) rewindPeek(str.length) }
+      (str.equals(it, ignoreCase)).also { result -> if (!result) rewindPeek(str.length) }
     } ?: false
 
-  fun peekSearchChar(chr: Char): Boolean = peekChar()?.let { it == chr } ?: false
+  fun peekSearchChar(chr: Char): Boolean = peek()?.let { it == chr } ?: false
   fun peekSearchChars(predicate: (Char) -> Boolean): String = searchNextChars(consume = false, use_peek = true, predicate = predicate)
 }
 

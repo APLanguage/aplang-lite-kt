@@ -10,11 +10,17 @@ sealed class GriddedObject<out T>(open val obj: T) {
 
   fun expandTo(endX: Int, endY: Int) = expandTo(Point(endX, endY))
 
+  operator fun component1() = obj
+
+  operator fun component2() = area()
+
   abstract fun area(): Area
 
   abstract fun <T2> asGriddedObjectOfType(clazz: Class<T2>): GriddedObject<T2>?
 
   abstract fun <T2> repack(obj: T2): GriddedObject<T2>
+
+  inline fun <reified T2> repack(repacker: (T) -> T2) = repack(repacker(obj))
 
   inline fun <reified T2> asGriddedObjectOfType(): GriddedObject<T2>? {
     return if (obj is T2) asGriddedObjectOfType((obj as T2)!!::class.java)
@@ -31,8 +37,13 @@ sealed class GriddedObject<out T>(open val obj: T) {
       return OneLineObject(start, obj, length)
     }
   }
-
 }
+
+inline fun <reified T, reified T2> List<GriddedObject<T>>.filterOfType(): List<GriddedObject<T2>> {
+  return mapNotNull { it.asGriddedObjectOfType() }
+}
+
+inline fun <reified T> T.gridded(start: Point, end: Point) = GriddedObject.of(start, this, end)
 
 class OneLineObject<T>(val start: Point, obj: T, val length: Int) : GriddedObject<T>(obj) {
 

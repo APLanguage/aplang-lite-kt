@@ -1,4 +1,4 @@
-package com.github.aplanguage.aplanglite.compiler
+package com.github.aplanguage.aplanglite.compiler.naming
 
 sealed class Signature {
   data class TypeSignature(

@@ -1,152 +1,93 @@
 package com.github.aplanguage.aplanglite
 
-import com.github.aplanguage.aplanglite.compiler.Namespace
-import com.github.aplanguage.aplanglite.compiler.Namespace.Companion.setParent
-import com.github.aplanguage.aplanglite.interpreter.Interpreter
+import com.github.aplanguage.aplanglite.compiler.compilation.apvm.Pool
+import com.github.aplanguage.aplanglite.compiler.compilation.apvm.bytecode.APLangFile
+import com.github.aplanguage.aplanglite.compiler.naming.Namespace
+import com.github.aplanguage.aplanglite.compiler.stdlib.StandardLibrary
+import com.github.aplanguage.aplanglite.compiler.typechecking.TypeCheckException
 import com.github.aplanguage.aplanglite.parser.Parser
+import com.github.aplanguage.aplanglite.parser.ParserException
 import com.github.aplanguage.aplanglite.tokenizer.scan
-import com.github.aplanguage.aplanglite.utils.ASTPrinter
 import com.github.aplanguage.aplanglite.utils.CharScanner
 import com.github.aplanguage.aplanglite.utils.TokenScanner
 import com.github.aplanguage.aplanglite.utils.Underliner
-import java.nio.file.Files
-import java.nio.file.Path
-import kotlin.io.path.isDirectory
 
 object Main {
 
-  val stdlib = Namespace(listOf(), listOf(), listOf(), listOf(
-    Namespace.Class("String", listOf(), listOf(), listOf(), listOf(), mutableListOf())
-  )).apply { setParent() }
-
   @JvmStatic
   fun main(args: Array<String>) {
-    if (args.size == 3) {
-      tokenizerTests(Path.of(args[0]))
-      parserTests(Path.of(args[1]))
-      // interpreterTests(Path.of(args[2]))
-    }
+    StandardLibrary.STD_LIB.path()
+    val str = """
+      fn main() {
+         var person = Person()
+         var i: I32 = 0
+         i += 3
+         println(person)
+         println("Before: " + person.name)
+         person.name = "AP"
+         println("After: " + person.name)
+         println(person.sayHi("everyone"))
+      }
+
+      class Person {
+        var name: String = "Default"
+
+        fn sayHi(target: String) : String {
+          return name + ": Hi, " + target + "!"
+        }
+      }
+    """.trimIndent()
+//    val channel = FileChannel.open(Path.of("comp.bin"), StandardOpenOption.CREATE, StandardOpenOption.WRITE)
+//    compile(str).write(channel)
+//    channel.close()
+    compile(str)?.print()
   }
 
-  private fun tokenizerTests(path: Path) {
-    println("TOKENIZER:")
-    if (path.isDirectory()) {
-      val files = path.toFile().walkTopDown().filter { it.isFile }.toList()
-      println("Scanning " + files.size + " files in " + path)
-      for (file in files) {
-        println("Scanning " + file.name)
-        val scan = scan(CharScanner(Files.readString(file.toPath())))
-        if (scan.liteErrors.isNotEmpty()) {
-          println("Errors found: ${scan.liteErrors}")
-          println("-------------------------------------")
-          continue
-        }
-        println(scan.tokens.joinToString("\n"))
-        println("-------------------------------------")
-      }
-    } else {
-      println("Scanning 1 file: $path")
-      val scan = scan(CharScanner(Files.readString(path)))
-      if (scan.liteErrors.isNotEmpty()) {
-        println("Errors found: ${scan.liteErrors}")
-        return
-      }
-      println(scan.tokens.joinToString("\n"))
-    }
-  }
-
-  private fun parserTests(path: Path) {
-    println("PARSER:")
-    if (path.isDirectory()) {
-      val files = path.toFile().walkTopDown().filter { it.isFile }.toList()
-      println("Scanning " + files.size + " files in " + path)
-      for (file in files) {
-        println("Scanning " + file.name)
-        val scan = scan(CharScanner(Files.readString(file.toPath())));
-        if (scan.liteErrors.isNotEmpty()) {
-          println("Errors found: ${scan.liteErrors}")
-          println("-------------------------------------")
-          continue
-        }
-        println("Parsing...")
-        val code = Parser(TokenScanner(scan.tokens), Underliner(Files.readAllLines(file.toPath()))).program()
-        println("As AST:")
-        ASTPrinter.print(code)
-        if (code != null) {
-          println("Structure")
-          val namespace = Namespace.ofProgram(code.obj)
-          ASTPrinter.print(namespace)
-          println("Resolving...")
-          namespace.resolve(setOf(stdlib))
-          ASTPrinter.print(namespace)
-        }
-        println("-------------------------------------")
-      }
-    } else {
-      println("Scanning " + path)
-      val scan = scan(CharScanner(Files.readString(path)));
-      if (scan.liteErrors.isNotEmpty()) {
-        println("Errors found: ${scan.liteErrors}")
-        println("-------------------------------------")
-        return
-      }
-      println("Parsing...")
-      val code = Parser(TokenScanner(scan.tokens), Underliner(Files.readAllLines(path))).program()
-      println("As AST:")
-      ASTPrinter.print(code)
-      if (code != null) {
-        println("Structure")
-        val namespace = Namespace.ofProgram(code.obj)
-        ASTPrinter.print(namespace)
-        println("Resolving...")
-        namespace.resolve(setOf(stdlib))
-        ASTPrinter.print(namespace)
-      }
-      println("-------------------------------------")
-    }
-  }
-
-  private fun interpreterTests(path: Path) {
-    println("INTERPRETER:")
-    if (path.isDirectory()) {
-      val files = path.toFile().walkTopDown().filter { it.isFile }.toList()
-      println("Scanning " + files.size + " files in " + path)
-      for (file in files) {
-        println("Scanning " + file.name)
-        val scan = scan(CharScanner(Files.readString(file.toPath())));
-        if (scan.liteErrors.isNotEmpty()) {
-          println("Errors found: ${scan.liteErrors}")
-          println("-------------------------------------")
-          continue
-        }
-        println("Parsing...")
-        val program = Parser(TokenScanner(scan.tokens), Underliner(Files.readAllLines(file.toPath()))).program()
-        if (program == null) {
-          println("Could not be parsed!")
-          continue
-        }
-        println("Executing....")
-        Interpreter().compileAndRun(program.obj)
-        println("-------------------------------------")
-      }
-    } else {
-      println("Scanning " + path)
-      val scan = scan(CharScanner(Files.readString(path)));
-      if (scan.liteErrors.isNotEmpty()) {
-        println("Errors found: ${scan.liteErrors}")
-        println("-------------------------------------")
-        return
-      }
-      println("Parsing...")
-      val program = Parser(TokenScanner(scan.tokens), Underliner(Files.readAllLines(path))).program()
+  private fun compile(code: String): APLangFile? {
+    val underliner = Underliner(code.lines())
+    try {
+      val parser = Parser(TokenScanner(scan(CharScanner(code)).tokens), underliner)
+      val program = parser.program()
       if (program == null) {
-        println("Could not be parsed!")
-        return
+        println("Failed to parse")
+        return null
       }
-      println("Executing....")
-      Interpreter().compileAndRun(program.obj)
-      println("-------------------------------------")
+      if (parser.errors().isNotEmpty()) {
+        parser.errors().forEach {
+          underliner.underline(it.area)
+          it.message?.also(::println)
+          it.exception.printStackTrace()
+          System.out.flush()
+        }
+        println("Failed to parse")
+        return null
+      }
+      val pool = Pool()
+      StandardLibrary.STD_LIB.path()
+      val namespace = Namespace.ofProgram("", program.obj)
+      namespace.resolve(setOf(StandardLibrary.STD_LIB))
+      val typecheckErrors = namespace.typeCheck(setOf(StandardLibrary.STD_LIB))
+      if (typecheckErrors.isNotEmpty()) {
+        typecheckErrors.forEach { exception ->
+          exception.areas.forEach(underliner::underline)
+          exception.printStackTrace()
+          System.out.flush()
+        }
+        println("Failed to typecheck")
+        return null
+      }
+      namespace.compile(pool)
+      return APLangFile.ofNamespace(pool, namespace)
+    } catch (e: ParserException) {
+      e.area?.also(underliner::underline)
+      e.printStackTrace()
+    } catch (e: TypeCheckException) {
+      e.areas.forEach { underliner.underline(it) }
+      e.printStackTrace()
     }
+    System.out.flush()
+    println("Failed to compile")
+    return null
   }
 }
 
