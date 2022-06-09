@@ -1,7 +1,7 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    kotlin("jvm") version "1.6.10"
+    kotlin("jvm") version "1.7.0"
 }
 
 group = "com.github.amejonah1200"
@@ -12,8 +12,8 @@ repositories {
 }
 
 dependencies {
-  implementation("com.google.code.gson:gson:2.8.8")
-  implementation("io.arrow-kt:arrow-core:1.0.1")
+  implementation("com.google.code.gson:gson:2.9.0")
+  implementation("io.arrow-kt:arrow-core:1.1.2")
 }
 
 tasks.test {
