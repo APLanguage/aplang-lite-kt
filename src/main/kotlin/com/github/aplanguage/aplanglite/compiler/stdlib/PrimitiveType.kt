@@ -1,13 +1,14 @@
 package com.github.aplanguage.aplanglite.compiler.stdlib
 
 import arrow.core.Either
-import com.github.aplanguage.aplanglite.compiler.naming.Namespace
+import com.github.aplanguage.aplanglite.compiler.naming.namespace.Class
+import com.github.aplanguage.aplanglite.compiler.naming.namespace.Typeable
 import com.github.aplanguage.aplanglite.tokenizer.CodeToken
 import com.github.aplanguage.aplanglite.tokenizer.CodeToken.*
 import kotlin.math.max
 import com.github.aplanguage.aplanglite.compiler.compilation.apvm.RegisterAllocator.Type as RegisterType
 
-enum class PrimitiveType : Namespace.Typeable {
+enum class PrimitiveType : Typeable {
   UNIT("Unit", RegisterType.REFERENCE),
   ANY("Any", RegisterType.REFERENCE),
   NOTHING("Nothing", RegisterType.REFERENCE),
@@ -28,12 +29,12 @@ enum class PrimitiveType : Namespace.Typeable {
   CHAR("Char", RegisterType.BIT_64),
   BOOL("Bool", RegisterType.BIT_8);
 
-  val clazz: Namespace.Class
+  val clazz: Class
   val clazzName: String?
   val registerType: RegisterType
 
   constructor(name: String, registerType: RegisterType) {
-    clazz = Namespace.Class(name, listOf(), mutableListOf(), mutableListOf(), mutableListOf(), mutableListOf())
+    clazz = Class(name, listOf(), mutableListOf(), mutableListOf(), mutableListOf(), mutableListOf())
     clazzName = name
     this.registerType = registerType
   }
@@ -51,8 +52,8 @@ enum class PrimitiveType : Namespace.Typeable {
 
   companion object {
     fun ofName(name: String) = values().firstOrNull { it.clazz.name == name }
-    fun ofClass(clazz: Namespace.Class) = values().firstOrNull { it.clazz == clazz } ?: ANY
-    fun isPrimitive(clazz: Namespace.Class) = NUMERICS.any { it.clazz == clazz } || clazz == CHAR.clazz || clazz == BOOL.clazz
+    fun ofClass(clazz: Class) = values().firstOrNull { it.clazz == clazz } ?: ANY
+    fun isPrimitive(clazz: Class) = NUMERICS.any { it.clazz == clazz } || clazz == CHAR.clazz || clazz == BOOL.clazz
 
     val classes = values().map { it.clazz }.distinct()
     val INTEGERS = listOf(I8, I16, I32, I64, U8, U16, U32, U64)
@@ -101,7 +102,7 @@ enum class PrimitiveType : Namespace.Typeable {
     }
   }
 
-  fun unary(operator: CodeToken): Namespace.Typeable {
+  fun unary(operator: CodeToken): Typeable {
     if (this == ANY) return VOID
     return when (operator) {
       BANG -> if (this == BOOL) this else VOID

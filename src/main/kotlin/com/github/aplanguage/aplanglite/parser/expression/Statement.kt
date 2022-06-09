@@ -1,7 +1,7 @@
 package com.github.aplanguage.aplanglite.parser.expression
 
 import arrow.core.Either
-import com.github.aplanguage.aplanglite.compiler.naming.Namespace
+import com.github.aplanguage.aplanglite.compiler.naming.namespace.Class
 import com.github.aplanguage.aplanglite.utils.GriddedObject
 
 sealed class Statement : Expression() {
@@ -10,7 +10,7 @@ sealed class Statement : Expression() {
 
   data class ForStatement(
     val identifier: GriddedObject<String>,
-    var type: Either<GriddedObject<String>, Namespace.Class>,
+    var type: Either<GriddedObject<String>, Class>,
     val iterableExpr: GriddedObject<DataExpression>,
     val statement: GriddedObject<Statement>
   ) : Statement() {

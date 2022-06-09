@@ -2,6 +2,12 @@ package com.github.aplanguage.aplanglite.compiler.naming
 
 import arrow.core.Either
 import com.github.aplanguage.aplanglite.compiler.compilation.apvm.RegisterAllocator
+import com.github.aplanguage.aplanglite.compiler.naming.namespace.Settable
+import com.github.aplanguage.aplanglite.compiler.naming.namespace.Typeable
+import com.github.aplanguage.aplanglite.compiler.naming.namespace.Namespace
+import com.github.aplanguage.aplanglite.compiler.naming.namespace.Class
+import com.github.aplanguage.aplanglite.compiler.naming.namespace.Field
+import com.github.aplanguage.aplanglite.compiler.naming.namespace.Method
 import com.github.aplanguage.aplanglite.compiler.stdlib.StandardLibrary.STD_LIB
 import com.github.aplanguage.aplanglite.parser.Parser
 import com.github.aplanguage.aplanglite.tokenizer.scan
@@ -13,7 +19,7 @@ import java.io.File
 import java.nio.charset.StandardCharsets
 
 
-data class LocalVariable(val name: String, val type: Namespace.Class) : Namespace.Typeable, Namespace.Settable {
+data class LocalVariable(val name: String, val type: Class) : Typeable, Settable {
   var register: RegisterAllocator.Register? = null
   override fun type() = type
   override fun isStatic() = true
@@ -49,18 +55,18 @@ class NameResolver {
   }
 
 
-  fun resolveField(name: String): Namespace.Field? =
+  fun resolveField(name: String): Field? =
     namespace.resolveFieldsInScope(name).firstOrNull() ?: otherNamespaces.firstNotNullOfOrNull { it.root().findFields(name).firstOrNull() }
 
   fun resolveLocalVariable(name: String): LocalVariable? = frame.localVariables.lastOrNull { it.name == name }
 
-  fun resolveMethod(name: String): List<Namespace.Method> =
+  fun resolveMethod(name: String): List<Method> =
     namespace.resolveMethodsInScope(name) + resolveClass(name).map { it.constructor } + otherNamespaces.flatMap { it.root().findMethods(name) }
 
-  fun resolveClass(name: String): List<Namespace.Class> = namespace.resolveClassPath(name) + STD_LIB.findClasses(name)
+  fun resolveClass(name: String): List<Class> = namespace.resolveClassPath(name) + STD_LIB.findClasses(name)
 }
 
-class Frame(val expectedType: Namespace.Class? = null) {
+class Frame(val expectedType: Class? = null) {
   val localVariables = mutableListOf<LocalVariable>()
   private val sections = mutableListOf<Int>()
 
@@ -72,8 +78,8 @@ class Frame(val expectedType: Namespace.Class? = null) {
     repeat(localVariables.size - (sections.removeLastOrNull() ?: return)) { localVariables.removeLast() }
   }
 
-  fun register(name: String, type: Namespace.Class): LocalVariable = LocalVariable(name, type).also { localVariables.add(it) }
+  fun register(name: String, type: Class): LocalVariable = LocalVariable(name, type).also { localVariables.add(it) }
 }
 
-fun Either<GriddedObject<String>, Namespace.Class>.resolve(nameResolver: NameResolver) =
+fun Either<GriddedObject<String>, Class>.resolve(nameResolver: NameResolver) =
   fold({ nameResolver.resolveClass(it.obj).firstOrNull() ?: throw Exception("Class not found: ${it.obj} at ${it.area()}") }, { it })

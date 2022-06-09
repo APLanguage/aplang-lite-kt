@@ -4,7 +4,10 @@ import arrow.core.Either
 import arrow.core.handleError
 import arrow.core.right
 import com.github.aplanguage.aplanglite.compiler.naming.NameResolver
-import com.github.aplanguage.aplanglite.compiler.naming.Namespace
+import com.github.aplanguage.aplanglite.compiler.naming.namespace.Class
+import com.github.aplanguage.aplanglite.compiler.naming.namespace.Method
+import com.github.aplanguage.aplanglite.compiler.naming.namespace.Field
+import com.github.aplanguage.aplanglite.compiler.naming.namespace.Typeable
 import com.github.aplanguage.aplanglite.compiler.stdlib.PrimitiveType
 import com.github.aplanguage.aplanglite.parser.expression.DataExpression
 import com.github.aplanguage.aplanglite.parser.expression.DataExpression.BinaryOperation.BinaryOpType
@@ -22,8 +25,8 @@ class TypeCheckException(message: String, val areas: List<Area>) : Exception(mes
   constructor(message: String, vararg areas: Area) : this(message, areas.toList())
 }
 
-class TypeChecker(val nameResolver: NameResolver) : DataExpressionVisitor<Unit, Namespace.Class> {
-  override fun visitAssignment(assignment: DataExpression.Assignment, context: Unit): Namespace.Class {
+class TypeChecker(val nameResolver: NameResolver) : DataExpressionVisitor<Unit, Class> {
+  override fun visitAssignment(assignment: DataExpression.Assignment, context: Unit): Class {
     val left = assignment.call.type(this, context)
     val right = assignment.expr.type(this, context)
     val tk = assignment.op.obj.codeToken
@@ -43,7 +46,7 @@ class TypeChecker(val nameResolver: NameResolver) : DataExpressionVisitor<Unit, 
     return result.clazz
   }
 
-  override fun visitIf(ifExpr: DataExpression.IfExpression, context: Unit): Namespace.Class {
+  override fun visitIf(ifExpr: DataExpression.IfExpression, context: Unit): Class {
     val condType = ifExpr.condition.type(this, context)
     if (PrimitiveType.ofClass(condType) != PrimitiveType.BOOL) {
       throw TypeCheckException("Condition of if expression must be boolean", listOf(ifExpr.condition.area()))
@@ -65,14 +68,14 @@ class TypeChecker(val nameResolver: NameResolver) : DataExpressionVisitor<Unit, 
     return matchingType
   }
 
-  override fun visitOop(oop: DataExpression.OopExpression, context: Unit): Namespace.Class {
+  override fun visitOop(oop: DataExpression.OopExpression, context: Unit): Class {
     return when (oop.oopOpType) {
       OopOpType.AS -> {
         val type = oop.expr.type(this, context)
         val targetArea = (oop.typeToCast as? Either.Left)?.value?.area()
         val targetType = oop.typeToCast(nameResolver)
         if (targetType != type && !targetType.allSuperClasses().contains(type)) {
-          if(type.primitiveType().isNumeric() && targetType.primitiveType().isNumeric()) {
+          if (type.primitiveType().isNumeric() && targetType.primitiveType().isNumeric()) {
             return targetType
           }
           throw TypeCheckException(
@@ -82,6 +85,7 @@ class TypeChecker(val nameResolver: NameResolver) : DataExpressionVisitor<Unit, 
         }
         targetType
       }
+
       OopOpType.IS, OopOpType.IS_NOT -> {
         val asPrimE = PrimitiveType.ofClass(oop.expr.type(this, context))
         if (asPrimE.isPrimitive() || asPrimE == PrimitiveType.STRING) throw TypeCheckException(
@@ -93,7 +97,7 @@ class TypeChecker(val nameResolver: NameResolver) : DataExpressionVisitor<Unit, 
     }
   }
 
-  override fun visitBinary(binary: DataExpression.BinaryOperation, context: Unit): Namespace.Class {
+  override fun visitBinary(binary: DataExpression.BinaryOperation, context: Unit): Class {
     return binary.operations.fold(binary.first) { left, (op, right) ->
       val leftType = left.type(this, context)
       val rightType = right.type(this, context)
@@ -113,7 +117,7 @@ class TypeChecker(val nameResolver: NameResolver) : DataExpressionVisitor<Unit, 
     }
   }
 
-  override fun visitUnary(unary: DataExpression.UnaryOperation, context: Unit): Namespace.Class {
+  override fun visitUnary(unary: DataExpression.UnaryOperation, context: Unit): Class {
     val exprType = unary.expr.type(this, context)
     val primitive = PrimitiveType.ofClass(exprType)
     val result = primitive.unary(unary.operation.obj.codeToken)
@@ -124,10 +128,10 @@ class TypeChecker(val nameResolver: NameResolver) : DataExpressionVisitor<Unit, 
     )
   }
 
-  override fun visitFunctionCall(functionCall: DataExpression.FunctionCall, context: Unit): Namespace.Class =
+  override fun visitFunctionCall(functionCall: DataExpression.FunctionCall, context: Unit): Class =
     visitFunctionCall(functionCall, nameResolver.resolveMethod(functionCall.identifier.obj), context)
 
-  fun visitFunctionCall(functionCall: DataExpression.FunctionCall, methods: List<Namespace.Method>, context: Unit): Namespace.Class {
+  fun visitFunctionCall(functionCall: DataExpression.FunctionCall, methods: List<Method>, context: Unit): Class {
     val arguments = functionCall.arguments.map { it.type(this, context) }
     val applicants = methods.filter { it.parameters.size == arguments.size }.filter { method ->
       method.parameters.allZip(arguments) { (_, paramType), arg ->
@@ -159,7 +163,7 @@ class TypeChecker(val nameResolver: NameResolver) : DataExpressionVisitor<Unit, 
       ?: PrimitiveType.UNIT.clazz
   }
 
-  override fun visitCall(call: DataExpression.Call, context: Unit): Namespace.Class {
+  override fun visitCall(call: DataExpression.Call, context: Unit): Class {
     return call.primary.type(this, context).let { prim ->
       call.call.fold({ funcCall ->
         visitFunctionCall(
@@ -181,13 +185,13 @@ class TypeChecker(val nameResolver: NameResolver) : DataExpressionVisitor<Unit, 
     }
   }
 
-  override fun visitDirectValue(directValue: DataExpression.DirectValue, context: Unit): Namespace.Class {
+  override fun visitDirectValue(directValue: DataExpression.DirectValue, context: Unit): Class {
     return if (directValue.value is Token.ValueToken.ValueKeywordToken && directValue.value.keyword == ValueKeyword.THIS)
-      nameResolver.namespace as? Namespace.Class ?: throw TypeCheckException("Cannot use 'this' outside of a class")
+      nameResolver.namespace as? Class ?: throw TypeCheckException("Cannot use 'this' outside of a class")
     else directValue.value.asPrimitive().clazz
   }
 
-  override fun visitIdentifier(identifier: DataExpression.IdentifierExpression, context: Unit): Namespace.Class {
+  override fun visitIdentifier(identifier: DataExpression.IdentifierExpression, context: Unit): Class {
     if (identifier.resolved == null) {
       val (str, area) = identifier.identifier
       identifier.resolved =
@@ -196,8 +200,8 @@ class TypeChecker(val nameResolver: NameResolver) : DataExpressionVisitor<Unit, 
     return identifier.resolved!!.type()!!
   }
 
-  override fun visitPrimitive(primitiveHolder: DataExpression.PrimitiveHolder, context: Unit): Namespace.Class = primitiveHolder.primitive.clazz
+  override fun visitPrimitive(primitiveHolder: DataExpression.PrimitiveHolder, context: Unit): Class = primitiveHolder.primitive.clazz
 }
 
-fun <N : Namespace.Typeable> Either<*, N>.type() = orNull()?.type() ?: throw IllegalStateException("Type not resolved!")
+fun <N : Typeable> Either<*, N>.type() = orNull()?.type() ?: throw IllegalStateException("Type not resolved!")
 

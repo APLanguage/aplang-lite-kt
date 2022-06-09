@@ -2,7 +2,7 @@ package com.github.aplanguage.aplanglite
 
 import com.github.aplanguage.aplanglite.compiler.compilation.apvm.Pool
 import com.github.aplanguage.aplanglite.compiler.compilation.apvm.bytecode.APLangFile
-import com.github.aplanguage.aplanglite.compiler.naming.Namespace
+import com.github.aplanguage.aplanglite.compiler.naming.namespace.Namespace
 import com.github.aplanguage.aplanglite.compiler.stdlib.StandardLibrary
 import com.github.aplanguage.aplanglite.compiler.typechecking.TypeCheckException
 import com.github.aplanguage.aplanglite.parser.Parser

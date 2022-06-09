@@ -1,12 +1,16 @@
 package com.github.aplanguage.aplanglite.compiler.naming
 
 import arrow.core.Either
+import com.github.aplanguage.aplanglite.compiler.naming.namespace.Field
+import com.github.aplanguage.aplanglite.compiler.naming.namespace.Method
+import com.github.aplanguage.aplanglite.compiler.naming.namespace.Class
+
 
 class ClassBuilder(val name: String) {
-  val fields = mutableListOf<Namespace.Field>()
-  val methods = mutableListOf<Namespace.Method>()
+  val fields = mutableListOf<Field>()
+  val methods = mutableListOf<Method>()
   val classes = mutableListOf<ClassBuilder>()
-  val superTypes = mutableListOf<Namespace.Class>()
+  val superTypes = mutableListOf<Class>()
 
   fun clazz(name: String, init: ClassBuilder.() -> Unit = {}): ClassBuilder {
     classes.add(ClassBuilder(name).also(init))
@@ -18,14 +22,14 @@ class ClassBuilder(val name: String) {
     return this
   }
 
-  fun field(name: String, type: Namespace.Class): ClassBuilder {
-    fields.add(Namespace.Field(name, Either.Right(type), null))
+  fun field(name: String, type: Class): ClassBuilder {
+    fields.add(Field(name, Either.Right(type), null))
     return this
   }
 
-  fun method(name: String, parameters: List<Namespace.Class>, returnType: Namespace.Class? = null): ClassBuilder {
+  fun method(name: String, parameters: List<Class>, returnType: Class? = null): ClassBuilder {
     methods.add(
-      Namespace.Method(name, returnType?.let { Either.Right(it) }, Either.Right(listOf()))
+      Method(name, returnType?.let { Either.Right(it) }, Either.Right(listOf()))
         .apply {
           parameters.map { "<?>" to Either.Right(it) }.forEach { (name, type) -> addParameter(name, type) }
         }
@@ -33,8 +37,8 @@ class ClassBuilder(val name: String) {
     return this
   }
 
-  fun build(): Namespace.Class =
-    Namespace.Class(
+  fun build(): Class =
+    Class(
       name,
       listOf(),
       fields,

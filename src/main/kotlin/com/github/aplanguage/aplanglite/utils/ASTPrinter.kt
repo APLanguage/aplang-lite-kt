@@ -3,7 +3,11 @@ package com.github.aplanguage.aplanglite.utils
 import arrow.core.Either
 import com.github.aplanguage.aplanglite.compiler.compilation.apvm.bytecode.Instruction
 import com.github.aplanguage.aplanglite.compiler.naming.LocalVariable
-import com.github.aplanguage.aplanglite.compiler.naming.Namespace
+import com.github.aplanguage.aplanglite.compiler.naming.namespace.Namespace
+import com.github.aplanguage.aplanglite.compiler.naming.namespace.Class
+import com.github.aplanguage.aplanglite.compiler.naming.namespace.Method
+import com.github.aplanguage.aplanglite.compiler.naming.namespace.Field
+import com.github.aplanguage.aplanglite.compiler.naming.namespace.Use
 import com.github.aplanguage.aplanglite.parser.expression.Expression
 import com.github.aplanguage.aplanglite.tokenizer.Token
 import java.math.BigInteger
@@ -68,7 +72,7 @@ object ASTPrinter {
       is Expression.Path -> listOf("Path(${any.identifiers.joinToString(".") { it.obj.identifier }})")
       is Namespace -> listOf(
         when (any) {
-          is Namespace.Class -> "Class(${any.path()},"
+          is Class -> "Class(${any.path()},"
           else -> "Namespace("
         },
         *convert(
@@ -81,9 +85,9 @@ object ASTPrinter {
         ).drop(1).dropLast(1).toTypedArray(),
         ")"
       )
-      is Namespace.Field -> listOf("Field(${any.name}, ${any.type})")
-      is Namespace.Method -> listOf("Method(${any.name}, ${any.returnType})")
-      is Namespace.Use -> listOf("Use(${any.path}${if (any.star) " ,*" else ""}${if (any.alias != null) " ,${any.alias}" else ""})")
+      is Field -> listOf("Field(${any.name}, ${any.type})")
+      is Method -> listOf("Method(${any.name}, ${any.returnType})")
+      is Use -> listOf("Use(${any.path}${if (any.star) " ,*" else ""}${if (any.alias != null) " ,${any.alias}" else ""})")
       is Either.Left<*> -> listOf("Left(${any.value})")
       is Either.Right<*> -> listOf("Right(${any.value})")
       else -> listOf(any.toString())

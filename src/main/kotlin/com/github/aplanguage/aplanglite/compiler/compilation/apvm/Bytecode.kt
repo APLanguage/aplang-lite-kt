@@ -7,7 +7,8 @@ import arrow.core.nel
 import com.github.aplanguage.aplanglite.compiler.compilation.apvm.RegisterAllocator.Companion.registerIndex
 import com.github.aplanguage.aplanglite.compiler.compilation.apvm.bytecode.Instruction
 import com.github.aplanguage.aplanglite.compiler.naming.LocalVariable
-import com.github.aplanguage.aplanglite.compiler.naming.Namespace
+import com.github.aplanguage.aplanglite.compiler.naming.namespace.Field as NamespaceField
+import com.github.aplanguage.aplanglite.compiler.naming.namespace.Settable
 import com.github.aplanguage.aplanglite.utils.Area
 import java.nio.channels.WritableByteChannel
 
@@ -23,11 +24,11 @@ sealed class ResultTarget {
     fun registerId() = register.fold({ it.id }, { it })
   }
 
-  class Field(val field: Namespace.Field, val instance: Either<RegisterAllocator.Register, Int>? = null) : ResultTarget() {
+  class Field(val field: NamespaceField, val instance: Either<RegisterAllocator.Register, Int>? = null) : ResultTarget() {
     override fun instructionTarget(frame: Frame): Instruction.Target = Instruction.Target.Field(frame.pool[field].id)
   }
 
-  class AsSettable(var settable: Namespace.Settable? = null) : ResultTarget() {
+  class AsSettable(var settable: Settable? = null) : ResultTarget() {
     override fun instructionTarget(frame: Frame): Instruction.Target =
       throw IllegalStateException("AsSettable should not be used as an instruction target")
   }
@@ -39,12 +40,12 @@ sealed class ResultTarget {
 
   companion object {
     inline fun RegisterAllocator.Register.target(): Register = Register(this.left())
-    inline fun Namespace.Field.target(instance: Either<RegisterAllocator.Register, Int>? = null) = Field(this, instance)
-    inline fun Namespace.Field.target(registerAllocator: RegisterAllocator): Field =
+    inline fun NamespaceField.target(instance: Either<RegisterAllocator.Register, Int>? = null) = Field(this, instance)
+    inline fun NamespaceField.target(registerAllocator: RegisterAllocator): Field =
       if (virtualType() == null) target(registerAllocator[0].left()) else target()
 
-    inline fun Namespace.Settable.target(frame: Frame? = null) = when (this) {
-      is Namespace.Field -> target()
+    inline fun Settable.target(frame: Frame? = null): ResultTarget = when (this) {
+      is NamespaceField -> target()
       is LocalVariable -> target(frame)
       else -> throw IllegalStateException("Settable target not supported")
     }

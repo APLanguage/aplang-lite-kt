@@ -4,18 +4,21 @@ import arrow.core.Either
 import arrow.core.NonEmptyList
 import arrow.core.handleError
 import com.github.aplanguage.aplanglite.compiler.naming.NameResolver
-import com.github.aplanguage.aplanglite.compiler.naming.Namespace
+import com.github.aplanguage.aplanglite.compiler.naming.namespace.Class
+import com.github.aplanguage.aplanglite.compiler.naming.namespace.Field
+import com.github.aplanguage.aplanglite.compiler.naming.namespace.Method
+import com.github.aplanguage.aplanglite.compiler.naming.namespace.Typeable
 import com.github.aplanguage.aplanglite.compiler.stdlib.PrimitiveType
 import com.github.aplanguage.aplanglite.tokenizer.Token
 import com.github.aplanguage.aplanglite.utils.GriddedObject
 
 sealed class DataExpression : Expression() {
 
-  protected var type: Namespace.Class? = null
+  protected var type: Class? = null
 
   abstract fun <C, R> visit(dataExpressionVisitor: DataExpressionVisitor<C, R>, context: C): R
 
-  fun <C> type(dataExpressionVisitor: DataExpressionVisitor<C, Namespace.Class>, context: C): Namespace.Class {
+  fun <C> type(dataExpressionVisitor: DataExpressionVisitor<C, Class>, context: C): Class {
     if (type == null) {
       type = visit(dataExpressionVisitor, context)
     }
@@ -45,7 +48,7 @@ sealed class DataExpression : Expression() {
   data class OopExpression(
     val expr: GriddedObject<DataExpression>,
     val oopOpType: OopOpType,
-    var typeToCast: Either<GriddedObject<Type>, Namespace.Class>
+    var typeToCast: Either<GriddedObject<Type>, Class>
   ) : DataExpression() {
     enum class OopOpType {
       AS, IS, IS_NOT
@@ -54,12 +57,13 @@ sealed class DataExpression : Expression() {
     override fun <C, R> visit(dataExpressionVisitor: DataExpressionVisitor<C, R>, context: C): R =
       dataExpressionVisitor.visitOop(this, context)
 
-    fun typeToCast(nameResolver: NameResolver): Namespace.Class {
+    fun typeToCast(nameResolver: NameResolver): Class {
       return when (typeToCast) {
         is Either.Left -> {
           typeToCast = typeToCast.handleError { nameResolver.resolveClass(it.obj.path.asString()).first() }
           (typeToCast as Either.Right).value
         }
+
         is Either.Right -> (typeToCast as Either.Right).value
       }
     }
@@ -87,14 +91,14 @@ sealed class DataExpression : Expression() {
   }
 
   data class FunctionCall(val identifier: GriddedObject<String>, val arguments: List<GriddedObject<DataExpression>>) : DataExpression() {
-    var resolvedFunction: Namespace.Method? = null
+    var resolvedFunction: Method? = null
     override fun <C, R> visit(dataExpressionVisitor: DataExpressionVisitor<C, R>, context: C): R =
       dataExpressionVisitor.visitFunctionCall(this, context)
   }
 
   data class Call(
     val primary: GriddedObject<DataExpression>,
-    var call: Either<GriddedObject<FunctionCall>, Either<GriddedObject<String>, Namespace.Field>>
+    var call: Either<GriddedObject<FunctionCall>, Either<GriddedObject<String>, Field>>
   ) : DataExpression() {
     override fun <C, R> visit(dataExpressionVisitor: DataExpressionVisitor<C, R>, context: C): R =
       dataExpressionVisitor.visitCall(this, context)
@@ -106,7 +110,7 @@ sealed class DataExpression : Expression() {
   }
 
   data class IdentifierExpression(var identifier: GriddedObject<String>) : DataExpression() {
-    var resolved: Namespace.Typeable? = null
+    var resolved: Typeable? = null
     override fun <C, R> visit(dataExpressionVisitor: DataExpressionVisitor<C, R>, context: C): R =
       dataExpressionVisitor.visitIdentifier(this, context)
   }
@@ -120,5 +124,5 @@ sealed class DataExpression : Expression() {
 inline fun <C, R> GriddedObject<DataExpression>.visit(dataExpressionVisitor: DataExpressionVisitor<C, R>, context: C) =
   obj.visit(dataExpressionVisitor, context)
 
-inline fun <C> GriddedObject<DataExpression>.type(dataExpressionVisitor: DataExpressionVisitor<C, Namespace.Class>, context: C) =
+inline fun <C> GriddedObject<DataExpression>.type(dataExpressionVisitor: DataExpressionVisitor<C, Class>, context: C) =
   obj.type(dataExpressionVisitor, context)

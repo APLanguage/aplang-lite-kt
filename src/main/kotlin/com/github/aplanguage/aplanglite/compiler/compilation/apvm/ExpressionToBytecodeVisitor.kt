@@ -9,7 +9,8 @@ import com.github.aplanguage.aplanglite.compiler.compilation.apvm.bytecode.Instr
 import com.github.aplanguage.aplanglite.compiler.compilation.apvm.bytecode.Instruction.Math.MathOperation.Companion.toMathOperation
 import com.github.aplanguage.aplanglite.compiler.compilation.apvm.bytecode.Instruction.NumberType.Companion.toNumberType
 import com.github.aplanguage.aplanglite.compiler.naming.LocalVariable
-import com.github.aplanguage.aplanglite.compiler.naming.Namespace
+import com.github.aplanguage.aplanglite.compiler.naming.namespace.Settable
+import com.github.aplanguage.aplanglite.compiler.naming.namespace.Field
 import com.github.aplanguage.aplanglite.compiler.stdlib.PrimitiveType
 import com.github.aplanguage.aplanglite.compiler.stdlib.StandardLibrary
 import com.github.aplanguage.aplanglite.parser.expression.DataExpression
@@ -21,6 +22,7 @@ import com.github.aplanguage.aplanglite.parser.expression.visit
 import com.github.aplanguage.aplanglite.tokenizer.CodeToken
 import com.github.aplanguage.aplanglite.tokenizer.Token
 import com.github.aplanguage.aplanglite.tokenizer.ValueKeyword
+import com.github.aplanguage.aplanglite.compiler.naming.namespace.Class
 
 class ExpressionToBytecodeVisitor(private val frame: Frame) : DataExpressionVisitor<ResultTarget, BytecodeChunk>,
   StatementVisitor<ExpressionToBytecodeVisitor.Scope?, BytecodeChunk> {
@@ -36,7 +38,7 @@ class ExpressionToBytecodeVisitor(private val frame: Frame) : DataExpressionVisi
         assignment.expr.visit(
           this,
           when (settable) {
-            is Namespace.Field -> settable.target()
+            is Field -> settable.target()
             is LocalVariable -> settable.target(frame)
             else -> throw IllegalStateException("Unexpected settable: $settable")
           }
@@ -44,7 +46,7 @@ class ExpressionToBytecodeVisitor(private val frame: Frame) : DataExpressionVisi
       )
     } else {
       if (!settable.isStatic()) ins.add(Instruction.DuplicateStack(0u))
-      if (settable is Namespace.Field) ins.add(Instruction.GetPut.get(frame.pool[settable].id))
+      if (settable is Field) ins.add(Instruction.GetPut.get(frame.pool[settable].id))
       ins.addAll(assignment.expr.visit(this, ResultTarget.Stack).instructions())
       if (settable.type() == PrimitiveType.STRING.clazz) {
         ins.add(
@@ -69,7 +71,7 @@ class ExpressionToBytecodeVisitor(private val frame: Frame) : DataExpressionVisi
         TODO("Division equal")
       } else {
         when (settable) {
-          is Namespace.Field -> BytecodeChunk.instructions(
+          is Field -> BytecodeChunk.instructions(
             Instruction.Math.stackOp(
               assignment.op.obj.codeToken.toMathOperation(),
               settable.type().primitiveType().toNumberType()
@@ -216,7 +218,7 @@ class ExpressionToBytecodeVisitor(private val frame: Frame) : DataExpressionVisi
 
   override fun visitFunctionCall(functionCall: DataExpression.FunctionCall, context: ResultTarget): BytecodeChunk {
     functionCall.resolvedFunction?.let { method ->
-      if (method.parent is Namespace.Class) {
+      if (method.parent is Class) {
         Instruction.LoadStore.load(0u)
       }
     }
@@ -241,7 +243,7 @@ class ExpressionToBytecodeVisitor(private val frame: Frame) : DataExpressionVisi
   private fun visitOnlyFunctionCall(functionCall: DataExpression.FunctionCall, context: ResultTarget): BytecodeChunk {
     val method = functionCall.resolvedFunction ?: throw IllegalStateException("Function not resolved")
     return (functionCall.arguments.flatMap { it.visit(this, ResultTarget.Stack).instructions() } +
-            Instruction.Call(method.parent !is Namespace.Class, context == ResultTarget.Discard, frame.pool[method].id)).chunk() +
+            Instruction.Call(method.parent !is Class, context == ResultTarget.Discard, frame.pool[method].id)).chunk() +
             if (context == ResultTarget.Discard) BytecodeChunk.NoOpChunk else fromTo(ResultTarget.Stack, context).chunk()
 
   }
@@ -273,11 +275,11 @@ class ExpressionToBytecodeVisitor(private val frame: Frame) : DataExpressionVisi
     val typeable = identifier.resolved ?: throw IllegalStateException("Identifier not resolved")
     println(identifier.identifier.obj + " resolved to " + typeable)
     return if (context is ResultTarget.AsSettable) {
-      context.settable = typeable as? Namespace.Settable
+      context.settable = typeable as? Settable
         ?: throw IllegalStateException("Unsupported identifier type ${typeable.javaClass.simpleName}, supported types are: Namespace.Field and LocalVariable.")
       BytecodeChunk.NoOpChunk
     } else when (typeable) {
-      is Namespace.Field -> fromTo(ResultTarget.Field(typeable), context).chunk()
+      is Field -> fromTo(ResultTarget.Field(typeable), context).chunk()
       is LocalVariable -> fromTo(
         frame.variable(identifier.identifier.obj)?.target() ?: throw CompilationException(
           "Local variable ${identifier.identifier.obj} not found", identifier.identifier.area()

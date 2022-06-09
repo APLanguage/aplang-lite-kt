@@ -3,7 +3,10 @@ package com.github.aplanguage.aplanglite.compiler.compilation.apvm.bytecode
 import com.github.aplanguage.aplanglite.compiler.compilation.apvm.bytecode.ReferenceInfo.ClassReference.PrimitiveReference
 import com.github.aplanguage.aplanglite.compiler.compilation.apvm.Pool
 import com.github.aplanguage.aplanglite.compiler.compilation.apvm.RegisterAllocator
-import com.github.aplanguage.aplanglite.compiler.naming.Namespace
+import com.github.aplanguage.aplanglite.compiler.naming.namespace.Class
+import com.github.aplanguage.aplanglite.compiler.naming.namespace.Method
+import com.github.aplanguage.aplanglite.compiler.naming.namespace.Field
+import com.github.aplanguage.aplanglite.compiler.naming.namespace.Namespace
 import com.github.aplanguage.aplanglite.utils.ByteBufferable
 import com.github.aplanguage.aplanglite.utils.byte
 import com.github.aplanguage.aplanglite.utils.double
@@ -157,7 +160,7 @@ sealed class ReferenceInfo(open val id: UShort, val name: String, val parent: US
   sealed class ResolvedReferenceInfo(id: UShort, name: String, parent: UShort?) : ReferenceInfo(id, name, parent) {
     abstract val reference: ReferenceInfo
 
-    class ResolvedClassReferenceInfo(val clazz: Namespace.Class, val classReference: ClassReference) :
+    class ResolvedClassReferenceInfo(val clazz: Class, val classReference: ClassReference) :
       ResolvedReferenceInfo(classReference.id, classReference.name, classReference.parent) {
       override val reference: ReferenceInfo
         get() = classReference
@@ -165,7 +168,7 @@ sealed class ReferenceInfo(open val id: UShort, val name: String, val parent: US
       override fun toByteBuffer() = classReference.toByteBuffer()
     }
 
-    class ResolvedFieldReferenceInfo(val field: Namespace.Field, val fieldReference: FieldReference) :
+    class ResolvedFieldReferenceInfo(val field: Field, val fieldReference: FieldReference) :
       ResolvedReferenceInfo(fieldReference.id, fieldReference.name, fieldReference.parent) {
       override val reference: ReferenceInfo
         get() = fieldReference
@@ -173,7 +176,7 @@ sealed class ReferenceInfo(open val id: UShort, val name: String, val parent: US
       override fun toByteBuffer() = fieldReference.toByteBuffer()
     }
 
-    class ResolvedMethodReferenceInfo(val method: Namespace.Method, val methodReference: MethodReference) :
+    class ResolvedMethodReferenceInfo(val method: Method, val methodReference: MethodReference) :
       ResolvedReferenceInfo(methodReference.id, methodReference.name, methodReference.parent) {
       override val reference: ReferenceInfo
         get() = methodReference
@@ -386,7 +389,7 @@ class FieldInfo(
       )
     }
 
-    fun of(pool: Pool, field: Namespace.Field): FieldInfo {
+    fun of(pool: Pool, field: Field): FieldInfo {
       return FieldInfo(
         field.name,
         FieldValue.Code(field.expr!!.orNull() ?: throw IllegalStateException("Field was not compiled"), pool[field.type()].classReference)
@@ -464,7 +467,7 @@ class MethodInfo(
       )
     }
 
-    fun of(pool: Pool, method: Namespace.Method): MethodInfo {
+    fun of(pool: Pool, method: Method): MethodInfo {
       return MethodInfo(
         method.name,
         method.returnType?.let { pool[it.orNull() ?: throw IllegalStateException("Method return type was not resolved")].classReference },
@@ -517,7 +520,7 @@ class ClassInfo(
         listOfTimes(channel.ubyte()!!.toInt()) { read(refSearch, channel) })
     }
 
-    fun of(pool: Pool, clazz: Namespace.Class): ClassInfo {
+    fun of(pool: Pool, clazz: Class): ClassInfo {
       return ClassInfo(
         clazz.name,
         clazz.supers.map { pool[it.orNull() ?: throw IllegalStateException("Class super was not resolved")].classReference },

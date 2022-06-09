@@ -5,24 +5,27 @@ import com.github.aplanguage.aplanglite.compiler.compilation.apvm.bytecode.Const
 import com.github.aplanguage.aplanglite.compiler.compilation.apvm.bytecode.ReferenceInfo
 import com.github.aplanguage.aplanglite.compiler.compilation.apvm.bytecode.ReferenceInfo.ResolvedReferenceInfo.*
 import com.github.aplanguage.aplanglite.compiler.naming.LocalVariable
-import com.github.aplanguage.aplanglite.compiler.naming.Namespace
+import com.github.aplanguage.aplanglite.compiler.naming.namespace.Class
+import com.github.aplanguage.aplanglite.compiler.naming.namespace.Method
+import com.github.aplanguage.aplanglite.compiler.naming.namespace.Field
+import com.github.aplanguage.aplanglite.compiler.naming.namespace.Typeable
 import com.github.aplanguage.aplanglite.utils.lastOrPut
 
 class Pool {
   val referencePool = mutableListOf<ReferenceInfo>()
   val constantPool = mutableListOf<ConstantInfo>()
 
-  operator fun contains(clazz: Namespace.Class) = referencePool.any { it is ResolvedClassReferenceInfo && it.clazz == clazz }
-  operator fun contains(method: Namespace.Method) = referencePool.any { it is ResolvedMethodReferenceInfo && it.method == method }
-  operator fun contains(field: Namespace.Field) = referencePool.any { it is ResolvedFieldReferenceInfo && it.field == field }
-  operator fun get(clazz: Namespace.Class) = pushOrGet(clazz)
-  operator fun get(method: Namespace.Method) = pushOrGet(method)
-  operator fun get(field: Namespace.Field) = pushOrGet(field)
+  operator fun contains(clazz: Class) = referencePool.any { it is ResolvedClassReferenceInfo && it.clazz == clazz }
+  operator fun contains(method: Method) = referencePool.any { it is ResolvedMethodReferenceInfo && it.method == method }
+  operator fun contains(field: Field) = referencePool.any { it is ResolvedFieldReferenceInfo && it.field == field }
+  operator fun get(clazz: Class) = pushOrGet(clazz)
+  operator fun get(method: Method) = pushOrGet(method)
+  operator fun get(field: Field) = pushOrGet(field)
   operator fun get(string: String) = pushOrGet(string)
 
-  fun pushOrGet(field: Namespace.Field): ResolvedFieldReferenceInfo {
+  fun pushOrGet(field: Field): ResolvedFieldReferenceInfo {
     referencePool.firstOrNull { it is ResolvedFieldReferenceInfo && it.field == field }?.run { return@pushOrGet this as ResolvedFieldReferenceInfo }
-    val parent = field.parent.let { if (it is Namespace.Class) pushOrGet(it) else null }?.id
+    val parent = field.parent.let { if (it is Class) pushOrGet(it) else null }?.id
     val type = pushOrGet(field.type()).classReference
     return ResolvedFieldReferenceInfo(
       field,
@@ -35,10 +38,10 @@ class Pool {
     ).also(referencePool::add)
   }
 
-  fun pushOrGet(method: Namespace.Method): ResolvedMethodReferenceInfo {
+  fun pushOrGet(method: Method): ResolvedMethodReferenceInfo {
     referencePool.firstOrNull { it is ResolvedMethodReferenceInfo && it.method == method }
       ?.run { return@pushOrGet this as ResolvedMethodReferenceInfo }
-    val parent = method.parent.let { if (it is Namespace.Class) pushOrGet(it) else null }?.id
+    val parent = method.parent.let { if (it is Class) pushOrGet(it) else null }?.id
     val returnType = method.type()?.let { pushOrGet(it).classReference }
     val parameters = method.parameters.map { pushOrGet(it.type()).classReference }
     return ResolvedMethodReferenceInfo(
@@ -53,9 +56,9 @@ class Pool {
     ).also(referencePool::add)
   }
 
-  fun pushOrGet(clazz: Namespace.Class): ResolvedClassReferenceInfo {
+  fun pushOrGet(clazz: Class): ResolvedClassReferenceInfo {
     referencePool.firstOrNull { it is ResolvedClassReferenceInfo && it.clazz == clazz }?.run { return@pushOrGet this as ResolvedClassReferenceInfo }
-    val parent = clazz.parent.let { if (it is Namespace.Class) pushOrGet(it) else null }?.id
+    val parent = clazz.parent.let { if (it is Class) pushOrGet(it) else null }?.id
     return ResolvedClassReferenceInfo(
       clazz,
       ReferenceInfo.ClassReference(
@@ -110,8 +113,8 @@ class RegisterAllocator {
     return register
   }
 
-  fun register(type: Namespace.Class): Register = register(type.primitiveType().registerType)
-  fun register(type: Namespace.Typeable) = register(type.type()!!)
+  fun register(type: Class): Register = register(type.primitiveType().registerType)
+  fun register(type: Typeable) = register(type.type()!!)
 
   operator fun get(index: Int) = registers[index]
 
@@ -144,7 +147,7 @@ class Frame {
     registerAllocator.enterScope()
   }
 
-  fun register(name: String, type: Namespace.Class): LocalVariable {
+  fun register(name: String, type: Class): LocalVariable {
     val variable = LocalVariable(name, type)
     variable.register = registerAllocator.register(type)
     localVariables.add(variable)
@@ -158,14 +161,14 @@ class Frame {
     repeat(localVariables.size - (sections.removeLastOrNull() ?: return)) { localVariables.removeLast() }
   }
 
-  constructor(pool: Pool, arguments: List<LocalVariable>, self: Namespace.Class? = null) {
+  constructor(pool: Pool, arguments: List<LocalVariable>, self: Class? = null) {
     this.pool = pool
     this.arguments = if (self != null) listOf(LocalVariable("this", self)) + arguments else arguments
     registerAllocator = RegisterAllocator()
     this.arguments.forEach { it.register = registerAllocator.register(it) }
   }
 
-  constructor(pool: Pool, self: Namespace.Class? = null) : this(pool, emptyList(), self)
+  constructor(pool: Pool, self: Class? = null) : this(pool, emptyList(), self)
 
   fun push(bytecode: BytecodeChunk) {
     code.add(bytecode)

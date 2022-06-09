@@ -3,8 +3,10 @@ package com.github.aplanguage.aplanglite.compiler.stdlib
 import arrow.core.Either
 import arrow.core.right
 import com.github.aplanguage.aplanglite.compiler.naming.ClassBuilder
-import com.github.aplanguage.aplanglite.compiler.naming.Namespace
-import com.github.aplanguage.aplanglite.compiler.naming.Namespace.Companion.setParent
+import com.github.aplanguage.aplanglite.compiler.naming.namespace.Namespace
+import com.github.aplanguage.aplanglite.compiler.naming.namespace.Method
+import com.github.aplanguage.aplanglite.compiler.naming.namespace.Class
+import com.github.aplanguage.aplanglite.compiler.naming.namespace.Namespace.Companion.setParent
 
 
 object StandardLibrary {
@@ -20,7 +22,6 @@ object StandardLibrary {
     .build()
 
   val STD_LIB = Namespace(
-    "aplang",
     listOf(),
     mutableListOf(),
     mutableListOf(
@@ -51,8 +52,8 @@ object StandardLibrary {
   }
 }
 
-private fun method(name: String, params: List<Namespace.Class>, returnType: Namespace.Class? = null): Namespace.Method =
-  Namespace.Method(name, returnType?.let { Either.Right(it) }, Either.Right(listOf()),).apply {
+private fun method(name: String, params: List<Class>, returnType: Class? = null): Method =
+  Method(name, returnType?.let { Either.Right(it) }, Either.Right(listOf()),).apply {
     params.forEach { addParameter("<?>", it.right()) }
   }
 
