@@ -29,9 +29,12 @@ class Field(
   override fun virtualType() = parent as? Class
   override fun isStatic() = parent !is Class
   fun compile(pool: Pool) {
+    TODO("REWRITE - compilation internals must be abstracted")
+    /*
     expr = expr?.handleError {
       it.obj.visit(ExpressionToBytecodeVisitor(com.github.aplanguage.aplanglite.compiler.compilation.apvm.Frame(pool)), ResultTarget.Stack)
         .instructions()
     }
+     */
   }
 }

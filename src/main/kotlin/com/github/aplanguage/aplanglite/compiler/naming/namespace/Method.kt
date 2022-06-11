@@ -53,7 +53,8 @@ class Method(
 
   override fun virtualType() = parent as? Class
   fun compile(pool: Pool) {
-    val frame =
+    TODO("REWITE - Moving out compilation internals")
+    /*val frame =
       com.github.aplanguage.aplanglite.compiler.compilation.apvm.Frame(
         pool,
         parameters.map { it.localVariable ?: LocalVariable(it.name, it.type()) })
@@ -63,7 +64,7 @@ class Method(
       frame.leaveScope()
       ins
     }
-    resolvedRegisters = frame.registerAllocator.registers.map { it.type }
+    resolvedRegisters = frame.registerAllocator.registers.map { it.type }*/
   }
 
   fun isStatic() = parent !is Class

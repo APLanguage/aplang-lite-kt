@@ -3,6 +3,7 @@ package com.github.aplanguage.aplanglite.compiler.compilation.apvm.bytecode
 import com.github.aplanguage.aplanglite.compiler.compilation.apvm.bytecode.ReferenceInfo.ClassReference.PrimitiveReference
 import com.github.aplanguage.aplanglite.compiler.compilation.apvm.Pool
 import com.github.aplanguage.aplanglite.compiler.compilation.apvm.RegisterAllocator
+import com.github.aplanguage.aplanglite.compiler.compilation.apvm.bytecode.ReferenceInfo.ResolvedReferenceInfo.*
 import com.github.aplanguage.aplanglite.compiler.naming.namespace.Class
 import com.github.aplanguage.aplanglite.compiler.naming.namespace.Method
 import com.github.aplanguage.aplanglite.compiler.naming.namespace.Field
@@ -248,9 +249,9 @@ fun ReferenceInfo.stringify(referencePool: List<ReferenceInfo>): String {
     is ReferenceInfo.MethodReference -> "#$name" + parameters.joinToString(", ", "(", ")") {
       "[${it.stringify(referencePool)}]"
     }
-    is ReferenceInfo.ResolvedReferenceInfo.ResolvedMethodReferenceInfo -> return methodReference.stringify(referencePool)
-    is ReferenceInfo.ResolvedReferenceInfo.ResolvedFieldReferenceInfo -> return fieldReference.stringify(referencePool)
-    is ReferenceInfo.ResolvedReferenceInfo.ResolvedClassReferenceInfo -> return classReference.stringify(referencePool)
+    is ResolvedMethodReferenceInfo -> return methodReference.stringify(referencePool)
+    is ResolvedFieldReferenceInfo -> return fieldReference.stringify(referencePool)
+    is ResolvedClassReferenceInfo -> return classReference.stringify(referencePool)
     else -> throw IllegalStateException("Unknown reference type ${javaClass.simpleName}")
   }.let { if (parent == null) it.substring(1) else it }
 }

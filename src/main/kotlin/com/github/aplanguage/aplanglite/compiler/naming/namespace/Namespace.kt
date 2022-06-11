@@ -164,9 +164,12 @@ open class Namespace(
 
   open fun path() = ""
   open fun compile(pool: Pool) {
+    TODO("REWRITE - compile internals should be abstracted")
+    /*
     fields.forEach { it.compile(pool) }
     methods.forEach { it.compile(pool) }
     classes.forEach { it.compile(pool) }
+     */
   }
 
 }
