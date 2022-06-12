@@ -60,12 +60,12 @@ open class Namespace(
   companion object {
     val EMPTY = Namespace(listOf(), mutableListOf(), mutableListOf(), mutableListOf())
 
-    fun ofProgram(pack: String?, expression: Expression.Program): Namespace {
+    fun ofProgram(expression: Expression.Program): Namespace {
       val uses = expression.uses.map {
         Use(Either.Left(it.obj.path.repack { it.asString() }), it.obj.all, it.obj.asOther)
       }
       val classes = expression.classes.map {
-        val namespace = ofProgram(null, it.obj.asProgram())
+        val namespace = ofProgram(it.obj.asProgram())
         Class(
           it.obj.identifier.obj.identifier,
           namespace.uses,

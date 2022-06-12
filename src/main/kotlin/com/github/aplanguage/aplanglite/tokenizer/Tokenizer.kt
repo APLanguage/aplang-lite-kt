@@ -13,6 +13,8 @@ data class ScanResult(val tokens: List<OneLineObject<Token>>, val liteErrors: Li
 
 class TokenizerException(msg: String) : RuntimeException(msg)
 
+fun scan(source: String) = scan(CharScanner(source))
+
 fun scan(scanner: CharScanner): ScanResult {
   scanner.reset()
   val tokens = mutableListOf<OneLineObject<Token>>()

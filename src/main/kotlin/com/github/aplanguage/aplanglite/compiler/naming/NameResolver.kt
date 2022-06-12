@@ -2,12 +2,12 @@ package com.github.aplanguage.aplanglite.compiler.naming
 
 import arrow.core.Either
 import com.github.aplanguage.aplanglite.compiler.compilation.apvm.RegisterAllocator
-import com.github.aplanguage.aplanglite.compiler.naming.namespace.Settable
-import com.github.aplanguage.aplanglite.compiler.naming.namespace.Typeable
-import com.github.aplanguage.aplanglite.compiler.naming.namespace.Namespace
 import com.github.aplanguage.aplanglite.compiler.naming.namespace.Class
 import com.github.aplanguage.aplanglite.compiler.naming.namespace.Field
 import com.github.aplanguage.aplanglite.compiler.naming.namespace.Method
+import com.github.aplanguage.aplanglite.compiler.naming.namespace.Namespace
+import com.github.aplanguage.aplanglite.compiler.naming.namespace.Settable
+import com.github.aplanguage.aplanglite.compiler.naming.namespace.Typeable
 import com.github.aplanguage.aplanglite.compiler.stdlib.StandardLibrary.STD_LIB
 import com.github.aplanguage.aplanglite.parser.Parser
 import com.github.aplanguage.aplanglite.tokenizer.scan
@@ -42,7 +42,7 @@ class NameResolver {
     val underliner = Underliner(file.readLines(StandardCharsets.UTF_8))
     if (result.liteErrors.isEmpty()) {
       val program = Parser(TokenScanner(result.tokens), underliner).program() ?: throw Exception("No program found")
-      namespace = Namespace.ofProgram(null, program.obj)
+      namespace = Namespace.ofProgram(program.obj)
       this.otherNamespaces = otherNamespaces
       this.frame = frame
     } else {

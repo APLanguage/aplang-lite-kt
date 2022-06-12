@@ -1,16 +1,14 @@
 package com.github.aplanguage.aplanglite
 
-import com.github.aplanguage.aplanglite.compiler.compilation.apvm.APVMCompilationContext
-import com.github.aplanguage.aplanglite.compiler.compilation.apvm.Pool
+import com.github.aplanguage.aplanglite.compiler.compilation.apvm.APVMCompiler
+import com.github.aplanguage.aplanglite.compiler.compilation.apvm.CompileResult
+import com.github.aplanguage.aplanglite.compiler.compilation.apvm.CompileResult.Failure.MultipleInput
+import com.github.aplanguage.aplanglite.compiler.compilation.apvm.CompileResult.Failure.SingleInput
+import com.github.aplanguage.aplanglite.compiler.compilation.apvm.ParseResult
 import com.github.aplanguage.aplanglite.compiler.compilation.apvm.bytecode.APLangFile
-import com.github.aplanguage.aplanglite.compiler.naming.namespace.Namespace
 import com.github.aplanguage.aplanglite.compiler.stdlib.StandardLibrary
 import com.github.aplanguage.aplanglite.compiler.typechecking.TypeCheckException
-import com.github.aplanguage.aplanglite.parser.Parser
 import com.github.aplanguage.aplanglite.parser.ParserException
-import com.github.aplanguage.aplanglite.tokenizer.scan
-import com.github.aplanguage.aplanglite.utils.CharScanner
-import com.github.aplanguage.aplanglite.utils.TokenScanner
 import com.github.aplanguage.aplanglite.utils.Underliner
 
 object Main {
@@ -47,38 +45,47 @@ object Main {
   private fun compile(code: String): APLangFile? {
     val underliner = Underliner(code.lines())
     try {
-      val parser = Parser(TokenScanner(scan(CharScanner(code)).tokens), underliner)
-      val program = parser.program()
-      if (program == null) {
-        println("Failed to parse")
-        return null
-      }
-      if (parser.errors().isNotEmpty()) {
-        parser.errors().forEach {
-          underliner.underline(it.area)
-          it.message?.also(::println)
-          it.exception.printStackTrace()
-          System.out.flush()
+      when (val result = APVMCompiler.compileSingleInputIntoAPLangFile(code)) {
+        CompileResult.NoFiles -> println("No files to compile")
+        is SingleInput.ParsingFailure -> {
+          if (result.path == null) println("Parsing failed")
+          else println("Parsing failed in file ${result.path}")
+          when (val parsingError = result.error) {
+            is ParseResult.ParserFailure -> {
+              for (error in parsingError.errors) {
+                underliner.underline(error.area)
+                error.message?.apply(::println)
+                error.exception.printStackTrace()
+                System.out.flush()
+              }
+            }
+
+            is ParseResult.TokenizerFailure -> {
+              parsingError.errors.forEach { error ->
+                underliner.underline(error)
+                println("ERROR: ${error.obj.name}")
+                System.out.flush()
+              }
+            }
+
+            else -> throw IllegalStateException("Unreachable")
+          }
         }
-        println("Failed to parse")
-        return null
-      }
-      StandardLibrary.STD_LIB.path()
-      val namespace = Namespace.ofProgram("", program.obj)
-      namespace.resolve(setOf(StandardLibrary.STD_LIB))
-      val typecheckErrors = namespace.typeCheck(setOf(StandardLibrary.STD_LIB))
-      if (typecheckErrors.isNotEmpty()) {
-        typecheckErrors.forEach { exception ->
-          exception.areas.forEach(underliner::underline)
-          exception.printStackTrace()
-          System.out.flush()
+
+        is SingleInput.TypeCheckFailure -> {
+          if (result.path == null) println("Type checking failed")
+          else println("Type checking failed in file ${result.path}")
+          for (error in result.errors) {
+            error.areas.forEach { underliner.underline(it) }
+            error.message?.also { println("ERROR: $it") }
+            error.printStackTrace()
+            System.out.flush()
+          }
         }
-        println("Failed to typecheck")
-        return null
+
+        is MultipleInput -> throw IllegalStateException("Unreachable")
+        is CompileResult.SuccessAPLangFile -> return result.apLangFile
       }
-      val pool = Pool()
-      namespace.compile(APVMCompilationContext(pool))
-      return APLangFile.ofNamespace(pool, namespace)
     } catch (e: ParserException) {
       e.area?.also(underliner::underline)
       e.printStackTrace()

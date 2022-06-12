@@ -26,11 +26,12 @@ data class ParserError(val exception: ParserException, val area: Area, val messa
 
 class Parser(val scanner: TokenScanner, val underliner: Underliner?) {
 
-  private val errors: MutableList<ParserError> = mutableListOf()
+  private val _errors: MutableList<ParserError> = mutableListOf()
 
-  fun clearErrors() = errors.clear()
+  fun clearErrors() = _errors.clear()
 
-  fun errors() = errors.toList()
+  val errors: List<ParserError>
+    get() = _errors.toList()
 
   fun program(): GriddedObject<Expression.Program>? {
     val packageDeclaration = packageDeclaration()
@@ -64,7 +65,7 @@ class Parser(val scanner: TokenScanner, val underliner: Underliner?) {
     scanner.endSection()
     return GriddedObject.of(packageTk.startCoords(), Expression.PackageDeclaration(path), path.endCoords()).also {
       if (it.endCoords().y != scanner.peekNextCoords().startCoords().y) {
-        errors.add(
+        _errors.add(
           ParserError(
             ParserException("Expected end of line after package declaration", it.endCoords().toArea()),
             it.endCoords().toArea(),
@@ -135,7 +136,7 @@ class Parser(val scanner: TokenScanner, val underliner: Underliner?) {
       }
     }
     expectCodeToken(scanner, CodeToken.RIGHT_PAREN, "fun_decl, closing paren.")?.also {
-      errors.add(ParserError(it, scanner.positionCoords()))
+      _errors.add(ParserError(it, scanner.positionCoords()))
     }
     scanner.startSection()
     val returnType = scanner.consumeMatchingCodeToken(CodeToken.COLON)?.let { type() }
@@ -168,7 +169,7 @@ class Parser(val scanner: TokenScanner, val underliner: Underliner?) {
       scanner.endSection()
     } catch (e: ParserException) {
       scanner.endSection(true)
-      errors.add(ParserError(e, listOfUntilNull {
+      _errors.add(ParserError(e, listOfUntilNull {
         scanner.consumeWithPredicate {
           if (it.obj is Token.SignToken) {
             (it.obj as Token.SignToken).codeToken !in arrayOf(CodeToken.RIGHT_PAREN, CodeToken.COMMA)
@@ -216,7 +217,7 @@ class Parser(val scanner: TokenScanner, val underliner: Underliner?) {
     }
     val path = path()
     if (path == null) {
-      errors.add(ParserError(ParserException("No path specified for use_decl", scanner.positionPreviousCoords()), scanner.positionPreviousCoords()))
+      _errors.add(ParserError(ParserException("No path specified for use_decl", scanner.positionPreviousCoords()), scanner.positionPreviousCoords()))
     }
     scanner.startSection()
     val star = path?.let { scanner.consumeMatchingCodeToken(CodeToken.DOT)?.let { scanner.consumeMatchingCodeToken(CodeToken.STAR) } }
@@ -233,12 +234,12 @@ class Parser(val scanner: TokenScanner, val underliner: Underliner?) {
         it.startCoords().y == useY
       }.let { it.first().expandTo(it.last().endCoords()).area() }
       if (path != null) {
-        errors.add(ParserError(ParserException("After a use statement there must be an new-line.", leftOver), leftOver))
+        _errors.add(ParserError(ParserException("After a use statement there must be an new-line.", leftOver), leftOver))
       } else {
         if (asOther != null || star != null) {
-          errors.add(ParserError(ParserException("No path specified.", useTk.endCoords().toArea()), useTk.endCoords().toArea()))
+          _errors.add(ParserError(ParserException("No path specified.", useTk.endCoords().toArea()), useTk.endCoords().toArea()))
         } else {
-          errors.add(ParserError(ParserException("After a use statement there must be an new-line.", leftOver), leftOver))
+          _errors.add(ParserError(ParserException("After a use statement there must be an new-line.", leftOver), leftOver))
         }
         scanner.endSection()
         return GriddedObject.of(useTk.startCoords(), Expression.BrokenExpression(useTk.area().expandTo(leftOver.endCoords())), leftOver.endCoords())
