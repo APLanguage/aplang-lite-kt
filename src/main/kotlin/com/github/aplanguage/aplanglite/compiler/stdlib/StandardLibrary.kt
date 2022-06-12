@@ -53,7 +53,7 @@ object StandardLibrary {
 }
 
 private fun method(name: String, params: List<Class>, returnType: Class? = null): Method =
-  Method(name, returnType?.let { Either.Right(it) }, Either.Right(listOf()),).apply {
+  Method(name, returnType?.let { Either.Right(it) }, listOf(),).apply {
     params.forEach { addParameter("<?>", it.right()) }
   }
 

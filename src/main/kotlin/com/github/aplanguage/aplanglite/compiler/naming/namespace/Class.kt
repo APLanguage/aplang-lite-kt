@@ -17,7 +17,7 @@ class Class(
   val supers: MutableList<Either<GriddedObject<String>, Class>>
 ) : Namespace(uses, fields, methods, classes) {
   lateinit var parent: Namespace
-  val constructor = Method("<init>", this.right(), listOf<GriddedObject<Statement>>().left()).apply { parent = this@Class }
+  val constructor = Method("<init>", this.right(), listOf()).apply { parent = this@Class }
 
   fun allSuperClasses(): List<Class> = supers.map {
     it.fold({ throw TypeResolveException("The type of ${it.obj} was not resolved.", it.area()) }, { it })

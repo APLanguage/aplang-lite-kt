@@ -1,5 +1,6 @@
 package com.github.aplanguage.aplanglite
 
+import com.github.aplanguage.aplanglite.compiler.compilation.apvm.APVMCompilationContext
 import com.github.aplanguage.aplanglite.compiler.compilation.apvm.Pool
 import com.github.aplanguage.aplanglite.compiler.compilation.apvm.bytecode.APLangFile
 import com.github.aplanguage.aplanglite.compiler.naming.namespace.Namespace
@@ -62,7 +63,6 @@ object Main {
         println("Failed to parse")
         return null
       }
-      val pool = Pool()
       StandardLibrary.STD_LIB.path()
       val namespace = Namespace.ofProgram("", program.obj)
       namespace.resolve(setOf(StandardLibrary.STD_LIB))
@@ -76,7 +76,8 @@ object Main {
         println("Failed to typecheck")
         return null
       }
-      namespace.compile(pool)
+      val pool = Pool()
+      namespace.compile(APVMCompilationContext(pool))
       return APLangFile.ofNamespace(pool, namespace)
     } catch (e: ParserException) {
       e.area?.also(underliner::underline)

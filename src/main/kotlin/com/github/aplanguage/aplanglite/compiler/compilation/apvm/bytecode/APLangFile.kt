@@ -1,5 +1,7 @@
 package com.github.aplanguage.aplanglite.compiler.compilation.apvm.bytecode
 
+import com.github.aplanguage.aplanglite.compiler.compilation.apvm.APVMFieldContext
+import com.github.aplanguage.aplanglite.compiler.compilation.apvm.APVMMethodContext
 import com.github.aplanguage.aplanglite.compiler.compilation.apvm.bytecode.ReferenceInfo.ClassReference.PrimitiveReference
 import com.github.aplanguage.aplanglite.compiler.compilation.apvm.Pool
 import com.github.aplanguage.aplanglite.compiler.compilation.apvm.RegisterAllocator
@@ -233,6 +235,7 @@ sealed class ReferenceInfo(open val id: UShort, val name: String, val parent: US
             else -> PrimitiveReference.fromId(fourtype - 1)!!
           }
         })
+
         else -> null
       }
     }
@@ -249,6 +252,7 @@ fun ReferenceInfo.stringify(referencePool: List<ReferenceInfo>): String {
     is ReferenceInfo.MethodReference -> "#$name" + parameters.joinToString(", ", "(", ")") {
       "[${it.stringify(referencePool)}]"
     }
+
     is ResolvedMethodReferenceInfo -> return methodReference.stringify(referencePool)
     is ResolvedFieldReferenceInfo -> return fieldReference.stringify(referencePool)
     is ResolvedClassReferenceInfo -> return classReference.stringify(referencePool)
@@ -334,6 +338,7 @@ class FieldInfo(
       is FieldValue.Code -> {
         "Code:\n    ${value.code.joinToString(separator = "\n    ") { it.visit(BytecodeStringifier(pool), Unit) }}\n"
       }
+
       is FieldValue.Constant -> "Indirect Constant: #${value.index}"
       is FieldValue.DirectValue -> "Constant: ${
         when (value) {
@@ -393,7 +398,10 @@ class FieldInfo(
     fun of(pool: Pool, field: Field): FieldInfo {
       return FieldInfo(
         field.name,
-        FieldValue.Code(field.expr!!.orNull() ?: throw IllegalStateException("Field was not compiled"), pool[field.type()].classReference)
+        FieldValue.Code(
+          field.compilationContexts.filterIsInstance<APVMFieldContext>().firstOrNull()?.instructions
+            ?: throw IllegalStateException("Field was not compiled"), pool[field.type()].classReference
+        )
       )
     }
   }
@@ -469,12 +477,13 @@ class MethodInfo(
     }
 
     fun of(pool: Pool, method: Method): MethodInfo {
+      val mcc = method.compilationContexts.filterIsInstance<APVMMethodContext>().firstOrNull()?: throw IllegalStateException("Method was not compiled")
       return MethodInfo(
         method.name,
         method.returnType?.let { pool[it.orNull() ?: throw IllegalStateException("Method return type was not resolved")].classReference },
         method.parameters.map { pool[it.clazz.orNull() ?: throw IllegalStateException("Method parameters were not resolved")].classReference },
-        method.resolvedRegisters,
-        method.exprs.orNull() ?: throw IllegalStateException("Method was not compiled")
+        mcc.resolvedRegisters,
+        mcc.instructions
       )
     }
   }

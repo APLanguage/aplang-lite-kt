@@ -1,8 +1,9 @@
 package com.github.aplanguage.aplanglite.compiler.naming.namespace
 
 import arrow.core.Either
-import arrow.core.handleError
-import com.github.aplanguage.aplanglite.compiler.compilation.apvm.ExpressionToBytecodeVisitor
+import com.github.aplanguage.aplanglite.compiler.compilation.CompilationContext
+import com.github.aplanguage.aplanglite.compiler.compilation.MethodCompilationContext
+import com.github.aplanguage.aplanglite.compiler.compilation.apvm.APVMCompilationContext
 import com.github.aplanguage.aplanglite.compiler.compilation.apvm.Pool
 import com.github.aplanguage.aplanglite.compiler.compilation.apvm.RegisterAllocator
 import com.github.aplanguage.aplanglite.compiler.compilation.apvm.bytecode.Instruction
@@ -17,9 +18,9 @@ import com.github.aplanguage.aplanglite.utils.GriddedObject
 class Method(
   val name: String,
   var returnType: Either<GriddedObject<String>, Class>?,
-  var exprs: Either<List<GriddedObject<Statement>>, List<Instruction>>
+  var exprs: List<GriddedObject<Statement>>
 ) : Typeable, VirtualTypeable {
-  var resolvedRegisters: List<RegisterAllocator.Type> = listOf()
+  val compilationContexts = mutableListOf<MethodCompilationContext>()
   val parameters = mutableListOf<MethodParameter>()
   lateinit var parent: Namespace
 
@@ -44,7 +45,7 @@ class Method(
         parameter.clazz.fold({ throw IllegalStateException("Parameters not resolved!") }, { register(parameter.name, it) })
       }
     })))
-    exprs.mapLeft { it.forEach { it.obj.visit(checker, Unit) } }
+    exprs.forEach { it.obj.visit(checker, Unit) }
   }
 
   fun addParameter(name: String, clazz: Either<GriddedObject<String>, Class>) {
@@ -52,20 +53,6 @@ class Method(
   }
 
   override fun virtualType() = parent as? Class
-  fun compile(pool: Pool) {
-    TODO("REWITE - Moving out compilation internals")
-    /*val frame =
-      com.github.aplanguage.aplanglite.compiler.compilation.apvm.Frame(
-        pool,
-        parameters.map { it.localVariable ?: LocalVariable(it.name, it.type()) })
-    exprs = exprs.handleError {
-      frame.enterScope()
-      val ins = it.flatMap { it.obj.visit(ExpressionToBytecodeVisitor(frame), null).instructions() }
-      frame.leaveScope()
-      ins
-    }
-    resolvedRegisters = frame.registerAllocator.registers.map { it.type }*/
-  }
 
   fun isStatic() = parent !is Class
 

@@ -29,7 +29,7 @@ class ClassBuilder(val name: String) {
 
   fun method(name: String, parameters: List<Class>, returnType: Class? = null): ClassBuilder {
     methods.add(
-      Method(name, returnType?.let { Either.Right(it) }, Either.Right(listOf()))
+      Method(name, returnType?.let { Either.Right(it) }, listOf())
         .apply {
           parameters.map { "<?>" to Either.Right(it) }.forEach { (name, type) -> addParameter(name, type) }
         }

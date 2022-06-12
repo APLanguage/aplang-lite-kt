@@ -2,7 +2,9 @@ package com.github.aplanguage.aplanglite.compiler.naming.namespace
 
 import arrow.core.Either
 import arrow.core.handleError
-import com.github.aplanguage.aplanglite.compiler.compilation.apvm.Pool
+import com.github.aplanguage.aplanglite.compiler.compilation.CompilationContext
+import com.github.aplanguage.aplanglite.compiler.compilation.FieldCompilationContext
+import com.github.aplanguage.aplanglite.compiler.compilation.MethodCompilationContext
 import com.github.aplanguage.aplanglite.compiler.typechecking.TypeCheckException
 import com.github.aplanguage.aplanglite.parser.expression.Expression
 import com.github.aplanguage.aplanglite.utils.Area
@@ -77,14 +79,15 @@ open class Namespace(
         Field(
           varDeclr.obj.identifier.obj,
           varDeclr.obj.type.mapLeft { it!!.repack { it.path.asString() } },
-          varDeclr.obj.expr?.let { Either.Left(it) })
+          varDeclr.obj.expr
+        )
       }
       val methods = expression.functions.map { funcDeclr ->
         funcDeclr.obj.run {
           Method(
             identifier.obj.identifier,
             type?.repack { it.path.asString() }?.let { Either.Left(it) },
-            Either.Left(code),
+            code,
           ).apply {
             for (param in this@run.parameters) {
               addParameter(
@@ -163,13 +166,19 @@ open class Namespace(
   }
 
   open fun path() = ""
-  open fun compile(pool: Pool) {
-    TODO("REWRITE - compile internals should be abstracted")
-    /*
-    fields.forEach { it.compile(pool) }
-    methods.forEach { it.compile(pool) }
-    classes.forEach { it.compile(pool) }
-     */
+
+  open fun <CC : CompilationContext<MCC, FCC>, MCC : MethodCompilationContext, FCC : FieldCompilationContext> compile(context: CC) {
+    fields.forEach {
+      val fieldContext = context.fieldCompilationContext(it) ?: throw IllegalStateException("No field compilation context")
+      it.compilationContexts.add(fieldContext)
+      context.compile(it, fieldContext)
+    }
+    methods.forEach {
+      val methodContext = context.methodCompilationContext(it) ?: throw IllegalStateException("No method compilation context")
+      it.compilationContexts.add(methodContext)
+      context.compile(it, methodContext)
+    }
+    classes.forEach { it.compile(context) }
   }
 
 }
