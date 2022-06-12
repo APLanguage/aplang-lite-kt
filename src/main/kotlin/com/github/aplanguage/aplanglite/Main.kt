@@ -1,13 +1,13 @@
 package com.github.aplanguage.aplanglite
 
-import com.github.aplanguage.aplanglite.compiler.compilation.apvm.APVMCompiler
 import com.github.aplanguage.aplanglite.compiler.compilation.apvm.CompileResult
 import com.github.aplanguage.aplanglite.compiler.compilation.apvm.CompileResult.Failure.MultipleInput
 import com.github.aplanguage.aplanglite.compiler.compilation.apvm.CompileResult.Failure.SingleInput
-import com.github.aplanguage.aplanglite.compiler.compilation.apvm.ParseResult
 import com.github.aplanguage.aplanglite.compiler.compilation.apvm.bytecode.APLangFile
+import com.github.aplanguage.aplanglite.compiler.compilation.apvm.compileSingleInputIntoAPLangFile
 import com.github.aplanguage.aplanglite.compiler.stdlib.StandardLibrary
 import com.github.aplanguage.aplanglite.compiler.typechecking.TypeCheckException
+import com.github.aplanguage.aplanglite.parser.ParseResult
 import com.github.aplanguage.aplanglite.parser.ParserException
 import com.github.aplanguage.aplanglite.utils.Underliner
 
@@ -45,7 +45,7 @@ object Main {
   private fun compile(code: String): APLangFile? {
     val underliner = Underliner(code.lines())
     try {
-      when (val result = APVMCompiler.compileSingleInputIntoAPLangFile(code)) {
+      when (val result = compileSingleInputIntoAPLangFile(code)) {
         CompileResult.NoFiles -> println("No files to compile")
         is SingleInput.ParsingFailure -> {
           if (result.path == null) println("Parsing failed")

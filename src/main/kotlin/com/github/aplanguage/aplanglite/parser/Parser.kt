@@ -3,6 +3,7 @@ package com.github.aplanguage.aplanglite.parser
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
+import com.github.aplanguage.aplanglite.compiler.naming.namespace.Namespace
 import com.github.aplanguage.aplanglite.parser.expression.DataExpression
 import com.github.aplanguage.aplanglite.parser.expression.DataExpression.BinaryOperation.BinaryOpType
 import com.github.aplanguage.aplanglite.parser.expression.Declaration
@@ -11,18 +12,57 @@ import com.github.aplanguage.aplanglite.parser.expression.Expression
 import com.github.aplanguage.aplanglite.parser.expression.Statement
 import com.github.aplanguage.aplanglite.tokenizer.CodeToken
 import com.github.aplanguage.aplanglite.tokenizer.Keyword
+import com.github.aplanguage.aplanglite.tokenizer.ScanErrorType
 import com.github.aplanguage.aplanglite.tokenizer.Token
+import com.github.aplanguage.aplanglite.tokenizer.scan
 import com.github.aplanguage.aplanglite.utils.Area
 import com.github.aplanguage.aplanglite.utils.GriddedObject
+import com.github.aplanguage.aplanglite.utils.OneLineObject
 import com.github.aplanguage.aplanglite.utils.TokenScanner
 import com.github.aplanguage.aplanglite.utils.Underliner
 import com.github.aplanguage.aplanglite.utils.filterOfType
 import com.github.aplanguage.aplanglite.utils.listOfUntilNull
 import com.github.aplanguage.aplanglite.utils.toNonEmptyList
+import java.nio.file.FileVisitResult
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.SimpleFileVisitor
+import java.nio.file.attribute.BasicFileAttributes
+import kotlin.io.path.isDirectory
+import kotlin.io.path.readText
 
-class ParserException(msg: String, val area: Area? = null) : RuntimeException(msg)
+fun parse(source: Path): List<Pair<Path, ParseResult>> {
+  if (source.isDirectory()) {
+    val results = mutableListOf<Pair<Path, ParseResult>>()
+    Files.walkFileTree(source, object : SimpleFileVisitor<Path>() {
+      override fun visitFile(file: Path, attrs: BasicFileAttributes): FileVisitResult {
+        if (file.endsWith(".aplang")) {
+          results.add(file to parse(file.readText()))
+        }
+        return FileVisitResult.CONTINUE
+      }
+    })
+    return results
+  }
+  if (source.endsWith(".aplang")) {
+    return listOf(source to parse(source.readText()))
+  }
+  return listOf()
+}
 
-data class ParserError(val exception: ParserException, val area: Area, val message: String? = null)
+fun parse(source: String): ParseResult {
+  val result = scan(source)
+  if (result.liteErrors.isNotEmpty()) {
+    return ParseResult.TokenizerFailure(result.liteErrors)
+  }
+  val underliner = Underliner(source.lines())
+  val parser = Parser(TokenScanner(result.tokens), underliner)
+  val ast = parser.program()
+  if (parser.errors.isNotEmpty()) {
+    return ParseResult.ParserFailure(parser.errors)
+  }
+  return ParseResult.Success(ast?.let { Namespace.ofProgram(it.obj) })
+}
 
 class Parser(val scanner: TokenScanner, val underliner: Underliner?) {
 
@@ -487,6 +527,7 @@ class Parser(val scanner: TokenScanner, val underliner: Underliner?) {
       is DataExpression.IdentifierExpression -> {
         funcArguments((primaryObj.obj as DataExpression.IdentifierExpression).identifier) ?: primaryObj
       }
+
       else -> primaryObj
     }
     val calls = listOfUntilNull {
@@ -529,6 +570,7 @@ class Parser(val scanner: TokenScanner, val underliner: Underliner?) {
           expression().also { expectCodeToken(scanner, CodeToken.RIGHT_PAREN, "primary, (expression) close paren")?.also { throw it } }
         else throw ParserException("Identifier, ValueToken or ( expected, got ${tk.obj}", tk.area())
       }
+
       is Token.KeywordToken -> if (tkObj.keyword == Keyword.IF) if_expr()
       else throw ParserException("Unexpected Token: ${tk.obj}", tk.area())
     }
