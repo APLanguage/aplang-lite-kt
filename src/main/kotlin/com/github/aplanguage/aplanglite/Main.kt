@@ -1,5 +1,6 @@
 package com.github.aplanguage.aplanglite
 
+import arrow.core.Either
 import com.github.aplanguage.aplanglite.compiler.compilation.apvm.CompileResult
 import com.github.aplanguage.aplanglite.compiler.compilation.apvm.CompileResult.Failure.MultipleInput
 import com.github.aplanguage.aplanglite.compiler.compilation.apvm.CompileResult.Failure.SingleInput
@@ -52,22 +53,37 @@ object Main {
           else println("Parsing failed in file ${result.path}")
           when (val parsingError = result.error) {
             is ParseResult.ParserFailure -> {
-              for (error in parsingError.errors) {
-                underliner.underline(error.area)
-                error.message?.apply(::println)
-                error.exception.printStackTrace()
-                System.out.flush()
+              when (val errors = parsingError.errors) {
+                is Either.Left -> {
+                  errors.value.area?.also(underliner::underline)
+                  errors.value.message?.also(::println)
+                  System.out.flush()
+                  errors.value.printStackTrace()
+                  System.out.flush()
+                }
+                is Either.Right -> for (error in errors.value) {
+                  underliner.underline(error.area)
+                  error.message?.apply(::println)
+                  System.out.flush()
+                  error.exception.printStackTrace()
+                  System.out.flush()
+                }
               }
             }
 
             is ParseResult.TokenizerFailure -> {
-              parsingError.errors.forEach { error ->
-                underliner.underline(error)
-                println("ERROR: ${error.obj.name}")
-                System.out.flush()
+              when (val errors = parsingError.errors) {
+                is Either.Left -> {
+                  errors.value.printStackTrace()
+                  System.out.flush()
+                }
+                is Either.Right -> for (error in errors.value) {
+                  underliner.underline(error)
+                  println("ERROR: ${error.obj.name}")
+                  System.out.flush()
+                }
               }
             }
-
             else -> throw IllegalStateException("Unreachable")
           }
         }

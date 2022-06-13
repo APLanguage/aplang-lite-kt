@@ -12,12 +12,10 @@ import com.github.aplanguage.aplanglite.parser.expression.Expression
 import com.github.aplanguage.aplanglite.parser.expression.Statement
 import com.github.aplanguage.aplanglite.tokenizer.CodeToken
 import com.github.aplanguage.aplanglite.tokenizer.Keyword
-import com.github.aplanguage.aplanglite.tokenizer.ScanErrorType
 import com.github.aplanguage.aplanglite.tokenizer.Token
+import com.github.aplanguage.aplanglite.tokenizer.TokenizerException
 import com.github.aplanguage.aplanglite.tokenizer.scan
-import com.github.aplanguage.aplanglite.utils.Area
 import com.github.aplanguage.aplanglite.utils.GriddedObject
-import com.github.aplanguage.aplanglite.utils.OneLineObject
 import com.github.aplanguage.aplanglite.utils.TokenScanner
 import com.github.aplanguage.aplanglite.utils.Underliner
 import com.github.aplanguage.aplanglite.utils.filterOfType
@@ -29,6 +27,7 @@ import java.nio.file.Path
 import java.nio.file.SimpleFileVisitor
 import java.nio.file.attribute.BasicFileAttributes
 import kotlin.io.path.isDirectory
+import kotlin.io.path.name
 import kotlin.io.path.readText
 
 fun parse(source: Path): List<Pair<Path, ParseResult>> {
@@ -36,7 +35,7 @@ fun parse(source: Path): List<Pair<Path, ParseResult>> {
     val results = mutableListOf<Pair<Path, ParseResult>>()
     Files.walkFileTree(source, object : SimpleFileVisitor<Path>() {
       override fun visitFile(file: Path, attrs: BasicFileAttributes): FileVisitResult {
-        if (file.endsWith(".aplang")) {
+        if (file.name.endsWith(".aplang")) {
           results.add(file to parse(file.readText()))
         }
         return FileVisitResult.CONTINUE
@@ -51,17 +50,23 @@ fun parse(source: Path): List<Pair<Path, ParseResult>> {
 }
 
 fun parse(source: String): ParseResult {
-  val result = scan(source)
-  if (result.liteErrors.isNotEmpty()) {
-    return ParseResult.TokenizerFailure(result.liteErrors)
+  try {
+    val result = scan(source)
+    if (result.liteErrors.isNotEmpty()) {
+      return ParseResult.TokenizerFailure(result.liteErrors.toNonEmptyList().right())
+    }
+    val underliner = Underliner(source.lines())
+    val parser = Parser(TokenScanner(result.tokens), underliner)
+    val ast = parser.program()
+    if (parser.errors.isNotEmpty()) {
+      return ParseResult.ParserFailure(parser.errors.toNonEmptyList().right())
+    }
+    return ParseResult.Success(ast?.let { Namespace.ofProgram(it.obj) })
+  } catch (e: ParserException) {
+    return ParseResult.ParserFailure(e.left())
+  } catch (e: TokenizerException) {
+    return ParseResult.TokenizerFailure(e.left())
   }
-  val underliner = Underliner(source.lines())
-  val parser = Parser(TokenScanner(result.tokens), underliner)
-  val ast = parser.program()
-  if (parser.errors.isNotEmpty()) {
-    return ParseResult.ParserFailure(parser.errors)
-  }
-  return ParseResult.Success(ast?.let { Namespace.ofProgram(it.obj) })
 }
 
 class Parser(val scanner: TokenScanner, val underliner: Underliner?) {
